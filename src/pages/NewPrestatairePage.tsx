@@ -1,0 +1,111 @@
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import AppLayout from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
+
+export default function NewPrestatairePage() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    nom: "",
+    specialite: "",
+    telephone: "",
+    email: "",
+    adresse: ""
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert("Prestataire créé avec succès !");
+    navigate('/prestataires');
+  };
+
+  return (
+    <AppLayout title="Nouveau prestataire">
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <div className="w-full max-w-2xl space-y-6">
+          <Button variant="ghost" onClick={() => navigate('/prestataires')} className="mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Retour
+          </Button>
+
+          <Card className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <Label htmlFor="nom">Nom du prestataire</Label>
+                <Input
+                  id="nom"
+                  value={formData.nom}
+                  onChange={(e) => setFormData({...formData, nom: e.target.value})}
+                  required
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="specialite">Spécialité</Label>
+                <select
+                  id="specialite"
+                  value={formData.specialite}
+                  onChange={(e) => setFormData({...formData, specialite: e.target.value})}
+                  className="w-full mt-2 px-3 py-2 border border-input rounded-lg bg-background"
+                  required
+                >
+                  <option value="">Sélectionner une spécialité</option>
+                  <option value="Médecin Généraliste">Médecin Généraliste</option>
+                  <option value="Pharmacie">Pharmacie</option>
+                  <option value="Clinique">Clinique</option>
+                  <option value="Gynécologue">Gynécologue</option>
+                  <option value="Laboratoire">Laboratoire</option>
+                  <option value="Ophtalmologue">Ophtalmologue</option>
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="telephone">Téléphone</Label>
+                <Input
+                  id="telephone"
+                  type="tel"
+                  value={formData.telephone}
+                  onChange={(e) => setFormData({...formData, telephone: e.target.value})}
+                  required
+                  className="mt-2"
+                  placeholder="+221771234567 ou +221 77 123 45 67"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="adresse">Adresse</Label>
+                <Input
+                  id="adresse"
+                  value={formData.adresse}
+                  onChange={(e) => setFormData({...formData, adresse: e.target.value})}
+                  required
+                  className="mt-2"
+                />
+              </div>
+
+              <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
+                Créer le prestataire
+              </Button>
+            </form>
+          </Card>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

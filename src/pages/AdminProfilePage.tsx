@@ -1,0 +1,207 @@
+import { useState } from "react";
+import AppLayout from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { User, Mail, Phone, MapPin, Lock, Camera } from "lucide-react";
+import { toast } from "sonner";
+
+export default function AdminProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    nom: "Diallo",
+    prenom: "Amadou",
+    email: "admin@santeassur.sn",
+    telephone: "+221 77 123 45 67",
+    adresse: "Dakar, Plateau",
+    role: "Administrateur"
+  });
+  const [passwordData, setPasswordData] = useState({
+    current: "",
+    new: "",
+    confirm: ""
+  });
+
+  const handleSave = () => {
+    toast.success("Profil mis à jour avec succès");
+    setIsEditing(false);
+  };
+
+  const handlePasswordChange = () => {
+    if (!passwordData.current || !passwordData.new || !passwordData.confirm) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    if (passwordData.new !== passwordData.confirm) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    if (passwordData.new.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+    toast.success("Mot de passe changé avec succès");
+    setPasswordData({ current: "", new: "", confirm: "" });
+  };
+
+  return (
+    <AppLayout>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold">Mon Profil</h1>
+
+        <Card className="p-6">
+          <div className="flex items-start gap-6 mb-6">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
+                AD
+              </div>
+              <button className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-50">
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold">{formData.prenom} {formData.nom}</h2>
+              <p className="text-muted-foreground">{formData.role}</p>
+              <p className="text-sm text-muted-foreground mt-1">{formData.email}</p>
+            </div>
+            <Button
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              className="btn-ripple bg-gradient-to-r from-blue-600 to-purple-600"
+            >
+              {isEditing ? "Enregistrer" : "Modifier"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4" />
+                Prénom
+              </Label>
+              <Input
+                value={formData.prenom}
+                onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                disabled={!isEditing}
+              />
+            </div>
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4" />
+                Nom
+              </Label>
+              <Input
+                value={formData.nom}
+                onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                disabled={!isEditing}
+              />
+            </div>
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <Mail className="w-4 h-4" />
+                Email
+              </Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={!isEditing}
+              />
+            </div>
+
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <Phone className="w-4 h-4" />
+                Téléphone
+              </Label>
+              <Input
+                value={formData.telephone}
+                onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                disabled={!isEditing}
+                placeholder="+221771234567 ou +221 77 123 45 67"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <Label className="flex items-center gap-2 mb-2">
+                <MapPin className="w-4 h-4" />
+                Adresse
+              </Label>
+              <Input
+                value={formData.adresse}
+                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Lock className="w-5 h-5" />
+            Sécurité
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <Label>Mot de passe actuel</Label>
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={passwordData.current}
+                onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Nouveau mot de passe</Label>
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={passwordData.new}
+                onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Confirmer le mot de passe</Label>
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={passwordData.confirm}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
+              />
+            </div>
+            <Button 
+              onClick={handlePasswordChange}
+              className="btn-ripple bg-gradient-to-r from-blue-600 to-purple-600"
+            >
+              Changer le mot de passe
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-4">Statistiques</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-blue-600">2,847</p>
+              <p className="text-sm text-muted-foreground">Assurés gérés</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-green-600">1,234</p>
+              <p className="text-sm text-muted-foreground">Polices actives</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-purple-600">156</p>
+              <p className="text-sm text-muted-foreground">Sinistres traités</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-orange-600">45.2M</p>
+              <p className="text-sm text-muted-foreground">FCFA remboursés</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}
