@@ -116,7 +116,7 @@ export default function StatistiquesPage() {
           <div>
             <p className="font-semibold text-lg">Serveur inaccessible</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Vérifiez que le backend est démarré sur{" "}
+              Service temporairement indisponible
               <code className="bg-muted px-1.5 py-0.5 rounded text-xs">localhost:3001</code>
             </p>
           </div>

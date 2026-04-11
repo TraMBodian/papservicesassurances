@@ -124,10 +124,9 @@ export default function Dashboard() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
           <ServerOff size={48} className="text-muted-foreground opacity-40" />
           <div>
-            <p className="font-semibold text-lg">Serveur inaccessible</p>
+            <p className="font-semibold text-lg">Service temporairement indisponible</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Le backend n'est pas joignable sur{' '}
-              <code className="bg-muted px-1.5 py-0.5 rounded text-xs">localhost:3001</code>
+              Impossible de contacter le serveur. Veuillez réessayer dans quelques instants.
             </p>
           </div>
           <button

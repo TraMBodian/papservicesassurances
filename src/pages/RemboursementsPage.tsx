@@ -99,7 +99,7 @@ export default function RemboursementsPage() {
           <div className="flex flex-col items-center justify-center h-48 gap-2 text-center px-4">
             <AlertCircle size={36} className="text-destructive opacity-60" />
             <p className="font-medium text-sm">Impossible de charger les données</p>
-            <p className="text-xs text-muted-foreground">Vérifiez que le backend est démarré</p>
+            <p className="text-xs text-muted-foreground">Service temporairement indisponible</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-4">

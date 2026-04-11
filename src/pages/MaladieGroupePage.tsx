@@ -91,7 +91,7 @@ export default function MaladieGroupePage() {
       <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
         <Building2 className="w-10 h-10 text-muted-foreground opacity-30" />
         <p className="font-semibold text-lg">Impossible de joindre le serveur</p>
-        <p className="text-sm text-muted-foreground">Vérifiez que le backend est démarré sur <code className="bg-muted px-1 rounded">localhost:3001</code></p>
+        <p className="text-sm text-muted-foreground">Service temporairement indisponible</p>
       </div>
     </AppLayout>
   );
