@@ -1,22 +1,43 @@
-import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw, WifiOff } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Notification {
-  id: string;
-  type: "sinistre" | "sinistre_recent" | "user" | "consultation" | string;
+interface RawNotification {
+  id:       string | number;
+  type:     string;
   priority: "high" | "low";
-  message: string;
-  detail: string;
-  link: string;
-  time: string;
+  message:  string;
+  detail:   string;
+  link:     string;
+  time:     string;
+}
+
+interface Notification extends RawNotification {
+  id:   string;
   read: boolean;
 }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+// ─── Persistance readIds ──────────────────────────────────────────────────────
+
+const READ_KEY = "notif_read_ids";
+
+function loadReadIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(READ_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+}
+
+function saveReadIds(ids: Set<string>) {
+  try {
+    localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
+  } catch { /* ignorer */ }
+}
+
+// ─── Config icônes par type ───────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; color: string }> = {
   sinistre:        { icon: <AlertTriangle size={14} />,  bg: "bg-orange-100",  color: "text-orange-600" },
@@ -31,44 +52,47 @@ const POLL_INTERVAL = 60_000; // 60 secondes
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NotificationSystem = () => {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const panelRef  = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const [isOpen,         setIsOpen]         = useState(false);
-  const [notifications,  setNotifications]  = useState<Notification[]>([]);
-  const [loading,        setLoading]        = useState(false);
-  const [readIds,        setReadIds]        = useState<Set<string>>(new Set());
+  const [isOpen,           setIsOpen]           = useState(false);
+  const [rawNotifications, setRawNotifications] = useState<RawNotification[]>([]);
+  const [loading,          setLoading]          = useState(false);
+  const [backendDown,      setBackendDown]      = useState(false);
+  // readIds chargés depuis localStorage au démarrage
+  const [readIds, setReadIds] = useState<Set<string>>(loadReadIds);
 
-  // ── Fetch depuis le backend ──────────────────────────────────────────────
+  // ── Notifications calculées (fusion données brutes + état lu) ──────────────
+  const notifications = useMemo<Notification[]>(() =>
+    rawNotifications.map(n => ({
+      ...n,
+      id:   String(n.id),
+      read: readIds.has(String(n.id)),
+    })),
+  [rawNotifications, readIds]);
+
+  // ── Fetch indépendant de readIds — pas besoin de redémarrer le polling ──────
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const raw = await apiClient.getNotifications();
-      const list: Notification[] = (Array.isArray(raw) ? raw : []).map((n: any) => ({
-        id:       String(n.id),
-        type:     n.type ?? "default",
-        priority: n.priority ?? "low",
-        message:  n.message ?? "",
-        detail:   n.detail  ?? "",
-        link:     n.link    ?? "/dashboard",
-        time:     n.time    ?? "",
-        read:     readIds.has(String(n.id)),
-      }));
-      setNotifications(list);
+      setRawNotifications(Array.isArray(raw) ? raw : []);
+      setBackendDown(false);
     } catch {
-      // Backend indisponible — on garde les notifs précédentes
+      setBackendDown(true);
+      // Garde les données précédentes sans les effacer
     } finally {
       setLoading(false);
     }
-  }, [readIds]);
+  }, []); // aucune dépendance — stable pour tout le cycle de vie
 
-  // Chargement initial + polling
+  // Chargement initial + polling toutes les 60 secondes
   useEffect(() => {
     fetchNotifications();
     const timer = setInterval(fetchNotifications, POLL_INTERVAL);
     return () => clearInterval(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchNotifications]);
 
   // Fermer au clic extérieur
   useEffect(() => {
@@ -85,17 +109,20 @@ export const NotificationSystem = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen]);
 
-  // ── Actions ─────────────────────────────────────────────────────────────
-  const markRead = (id: string) => {
-    setReadIds(prev => new Set([...prev, id]));
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  // ── Helpers mise à jour readIds avec persistance ──────────────────────────
+  const updateReadIds = (updater: (prev: Set<string>) => Set<string>) => {
+    setReadIds(prev => {
+      const next = updater(prev);
+      saveReadIds(next);
+      return next;
+    });
   };
 
-  const markAllRead = () => {
-    const all = new Set(notifications.map(n => n.id));
-    setReadIds(all);
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
+  const markRead = (id: string) =>
+    updateReadIds(prev => new Set([...prev, id]));
+
+  const markAllRead = () =>
+    updateReadIds(() => new Set(notifications.map(n => n.id)));
 
   const handleClick = (n: Notification) => {
     markRead(n.id);
@@ -103,10 +130,10 @@ export const NotificationSystem = () => {
     navigate(n.link);
   };
 
-  // ── Computed ─────────────────────────────────────────────────────────────
-  const unread      = notifications.filter(n => !n.read).length;
+  // ── Computed ──────────────────────────────────────────────────────────────
+  const unread       = notifications.filter(n => !n.read).length;
   const highPriority = notifications.filter(n => n.priority === "high" && !n.read).length;
-  const sorted      = [...notifications].sort((a, b) => {
+  const sorted       = [...notifications].sort((a, b) => {
     if (a.priority === "high" && b.priority !== "high") return -1;
     if (b.priority === "high" && a.priority !== "high") return  1;
     return 0;
@@ -168,13 +195,36 @@ export const NotificationSystem = () => {
             </div>
           </div>
 
+          {/* Bannière backend indisponible */}
+          {backendDown && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+              <WifiOff size={12} className="shrink-0" />
+              <span>Serveur indisponible — dernières données connues affichées</span>
+            </div>
+          )}
+
           {/* List */}
           <div className="max-h-[400px] overflow-y-auto">
             {sorted.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
-                <Bell size={28} className="opacity-30" />
-                <p className="text-sm">Aucune notification</p>
-                <p className="text-xs opacity-70">Tout est à jour ✓</p>
+                {backendDown ? (
+                  <>
+                    <WifiOff size={28} className="opacity-30" />
+                    <p className="text-sm">Connexion au serveur perdue</p>
+                    <button
+                      onClick={fetchNotifications}
+                      className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                    >
+                      <RefreshCw size={11} /> Réessayer
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Bell size={28} className="opacity-30" />
+                    <p className="text-sm">Aucune notification</p>
+                    <p className="text-xs opacity-70">Tout est à jour ✓</p>
+                  </>
+                )}
               </div>
             ) : (
               <ul className="divide-y divide-border">
@@ -234,7 +284,10 @@ export const NotificationSystem = () => {
           {sorted.length > 0 && (
             <div className="px-4 py-2.5 border-t border-border bg-muted/30 text-center">
               <p className="text-xs text-muted-foreground">
-                Actualisé toutes les 60 secondes
+                {backendDown
+                  ? "Serveur indisponible · cliquez ↺ pour réessayer"
+                  : "Actualisé toutes les 60 secondes"
+                }
               </p>
             </div>
           )}

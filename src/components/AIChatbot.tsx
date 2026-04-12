@@ -1,5 +1,23 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { MessageCircle, X, Mic, MicOff, PhoneOff } from "lucide-react";
+import { X, Mic, MicOff, PhoneOff } from "lucide-react";
+
+// Icône casque (headset) — source : iconer.app
+const HeadsetIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+    <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+  </svg>
+);
 import { Card } from "@/components/ui/card";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 
@@ -54,7 +72,7 @@ const ChatWidget = ({ onClose, lang, setLang }: {
   const conversation = useConversation({
     onConnect: () => console.log("ElevenLabs: connecté"),
     onDisconnect: () => console.log("ElevenLabs: déconnecté"),
-    onError: (error) => console.error("ElevenLabs erreur:", error),
+    onError: (error: unknown) => console.error("ElevenLabs erreur:", error),
   });
 
   useEffect(() => {
@@ -68,7 +86,7 @@ const ChatWidget = ({ onClose, lang, setLang }: {
   const startConversation = useCallback(async () => {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      await conversation.startSession({
+      conversation.startSession({
         agentId: AGENT_ID,
         connectionType: "websocket",
       });
@@ -217,7 +235,7 @@ export const AIChatbot = () => {
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 animate-pulse"
         >
-          <MessageCircle className="w-8 h-8 text-white" />
+          <HeadsetIcon className="w-8 h-8 text-white" />
         </button>
       )}
       {isOpen && (
