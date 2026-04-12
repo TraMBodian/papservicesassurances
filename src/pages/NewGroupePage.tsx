@@ -12,9 +12,11 @@ import {
   ArrowLeft, RefreshCw, ChevronDown, ChevronUp,
   Download, X, FileSpreadsheet, AlertCircle,
   Users, CheckCircle2, AlertTriangle, XCircle,
+  Eye, Clock, UserCheck, UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DataService } from "@/services/dataService";
+import { useAuth } from "@/context/AuthContext";
 import * as XLSX from "xlsx";
 import {
   GARANTIES_CNART, REAJUSTEMENT_SP,
@@ -51,6 +53,20 @@ export interface ParseResult {
   errors:  ValidationError[];
 }
 
+export interface FamilleGroup {
+  principal:   MembrePopulation | null;
+  ayantsDroit: MembrePopulation[];
+}
+
+export interface ImportRecord {
+  id:         string;
+  date:       string;   // ISO
+  fileName:   string;
+  nbMembres:  number;
+  nbFamilles: number;
+  userName:   string;
+}
+
 // ─── Calcul décompte ──────────────────────────────────────────────────────────
 
 export function calcDecomptePopulation(membres: MembrePopulation[]) {
@@ -65,10 +81,48 @@ export function calcDecomptePopulation(membres: MembrePopulation[]) {
   return { nb, primeEnfants, primeAdultes, primeAdultesAge, primeNette, accessoires: ACCESSOIRES, taxes, total };
 }
 
+// ─── Regroupement familles ────────────────────────────────────────────────────
+
+export function groupByPrincipal(membres: MembrePopulation[]): FamilleGroup[] {
+  const groups: FamilleGroup[] = [];
+  let current: FamilleGroup | null = null;
+
+  for (const m of membres) {
+    if (m.lien === "Principal") {
+      if (current) groups.push(current);
+      current = { principal: m, ayantsDroit: [] };
+    } else {
+      if (!current) current = { principal: null, ayantsDroit: [] };
+      current.ayantsDroit.push(m);
+    }
+  }
+  if (current) groups.push(current);
+  return groups;
+}
+
+// ─── Historique localStorage ──────────────────────────────────────────────────
+
+const HISTORY_KEY = "groupe_import_history";
+
+function getImportHistory(): ImportRecord[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function addImportRecord(record: ImportRecord) {
+  try {
+    const history = getImportHistory();
+    // Garder les 20 dernières entrées
+    const updated = [record, ...history].slice(0, 20);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  } catch { /* ignorer */ }
+}
+
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const LIENS_AUTORISES = ["Principal", "Conjoint", "Enfant", "Père", "Mère", "Frère", "Sœur", "Autre"];
-const SEXES_AUTORISES = ["M", "F", "Masculin", "Féminin", "H"];
+const LIENS_AUTORISES    = ["Principal", "Conjoint", "Enfant", "Père", "Mère", "Frère", "Sœur", "Autre"];
 const GARANTIES_AUTORISEES = ["Standard", "Confort", "Premium"];
 
 // ─── Template Excel ───────────────────────────────────────────────────────────
@@ -85,17 +139,16 @@ function downloadTemplate() {
     [2, "Fatou Diallo",    "1985-08-22", "F", "9876543210987", "Conjoint",  "2024-01-01", "",        "Standard"],
     [3, "Ibrahima Diallo", "2010-03-10", "M", "1111222233334", "Enfant",    "2024-01-01", "",        "Standard"],
     [4, "Aïssatou Diallo", "2015-11-30", "F", "5555666677778", "Enfant",    "2024-01-01", "",        "Standard"],
+    [5, "Ousmane Sow",     "1975-12-01", "M", "2222333344445", "Principal", "2024-01-01", "900000",  "Confort"],
+    [6, "Mariama Sow",     "1978-06-18", "F", "3333444455556", "Conjoint",  "2024-01-01", "",        "Confort"],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...exemples]);
-
-  // Largeurs colonnes
   ws["!cols"] = [
     { wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 10 },
     { wch: 22 }, { wch: 32 }, { wch: 16 }, { wch: 18 }, { wch: 14 },
   ];
 
-  // Feuille instructions
   const wsInstructions = XLSX.utils.aoa_to_sheet([
     ["INSTRUCTIONS D'UTILISATION"],
     [""],
@@ -111,11 +164,19 @@ function downloadTemplate() {
     ["  • Salaire : nombre entier en FCFA"],
     ["  • Garantie : Standard (défaut), Confort, Premium"],
     [""],
-    ["Règles"],
+    ["Règles de groupement (import intelligent)"],
     ["  • Une ligne = une personne"],
-    ["  • Le premier membre avec lien 'Principal' est l'adhérent principal"],
-    ["  • Chaque N° pièce d'identité doit être unique"],
-    ["  • Les enfants (< 18 ans) sont catégorisés automatiquement"],
+    ["  • La ligne avec Lien = 'Principal' commence une nouvelle famille"],
+    ["  • Les lignes suivantes (Conjoint, Enfant…) sont les ayants droit du Principal précédent"],
+    ["  • Plusieurs familles possibles dans un même fichier"],
+    ["  • L'adhérent principal et ses ayants droit sont détectés automatiquement"],
+    [""],
+    ["Exemple de structure :"],
+    ["  Ligne 2 : Mamadou Diallo — Principal  → Famille 1"],
+    ["  Ligne 3 : Fatou Diallo   — Conjoint   → Ayant droit de Famille 1"],
+    ["  Ligne 4 : Ibrahim Diallo — Enfant     → Ayant droit de Famille 1"],
+    ["  Ligne 5 : Ousmane Sow   — Principal  → Famille 2"],
+    ["  Ligne 6 : Mariama Sow   — Conjoint   → Ayant droit de Famille 2"],
   ]);
 
   const wb = XLSX.utils.book_new();
@@ -128,28 +189,27 @@ function downloadTemplate() {
 
 function downloadErrorFile(errors: ValidationError[], membres: MembrePopulation[]) {
   const rows = errors.map(e => ({
-    "Ligne":    e.ligne,
-    "Nom":      e.nom || "—",
-    "Champ":    e.champ,
-    "Erreur":   e.message,
-    "Statut":   "❌ Erreur",
+    "Ligne":  e.ligne,
+    "Nom":    e.nom || "—",
+    "Champ":  e.champ,
+    "Erreur": e.message,
+    "Statut": "❌ Erreur",
   }));
 
   const wsErrors = XLSX.utils.json_to_sheet(rows);
   wsErrors["!cols"] = [{ wch: 8 }, { wch: 25 }, { wch: 22 }, { wch: 40 }, { wch: 12 }];
 
-  // Ajouter aussi les lignes valides
   const wsValid = XLSX.utils.json_to_sheet(membres.map(m => ({
-    "N°":              m.numero,
-    "Nom et Prénom":   m.nom,
-    "Date naissance":  m.dateNaissance,
-    "Sexe":            m.sexe,
-    "Pièce identité":  m.pieceIdentite,
-    "Lien":            m.lien,
-    "Date adhésion":   m.dateAdhesion,
-    "Salaire":         m.salaire || "",
-    "Garantie":        m.garantie,
-    "Catégorie":       m.type === "enfant" ? "Enfant" : m.type === "adulte" ? "Adulte" : "Âgé",
+    "N°":            m.numero,
+    "Nom et Prénom": m.nom,
+    "Date naissance":m.dateNaissance,
+    "Sexe":          m.sexe,
+    "Pièce identité":m.pieceIdentite,
+    "Lien":          m.lien,
+    "Date adhésion": m.dateAdhesion,
+    "Salaire":       m.salaire || "",
+    "Garantie":      m.garantie,
+    "Catégorie":     m.type === "enfant" ? "Enfant" : m.type === "adulte" ? "Adulte" : "Âgé",
   })));
 
   const wb = XLSX.utils.book_new();
@@ -206,7 +266,7 @@ const COL_PATTERNS: Record<string, string[]> = {
   nom:           ["nom", "prenom", "name", "complet"],
   dateNaissance: ["naissance", "dob"],
   sexe:          ["sexe", "genre", "sex"],
-  pieceIdentite: ["piece", "identite", "cni", "cin", "passeport", "cni"],
+  pieceIdentite: ["piece", "identite", "cni", "cin", "passeport"],
   lien:          ["lien", "parent", "adherent", "relation"],
   dateAdhesion:  ["adhesion"],
   salaire:       ["salaire", "salary", "revenu"],
@@ -268,36 +328,33 @@ function parseAndValidate(file: File): Promise<ParseResult> {
         const cniSeen:  Set<string>        = new Set();
 
         jsonRows.forEach((row, i) => {
-          const ligne = i + 2; // +2 : ligne 1 = en-tête Excel
+          const ligne = i + 2;
 
-          const nom           = g(row, k.nom);
-          const dateNaissRaw  = k.dateNaissance ? row[k.dateNaissance] : "";
-          const sexeRaw       = g(row, k.sexe);
-          const cni           = g(row, k.pieceIdentite);
-          const lienRaw       = g(row, k.lien);
-          const dateAdhRaw    = k.dateAdhesion ? row[k.dateAdhesion] : "";
-          const salaireRaw    = g(row, k.salaire);
-          const garantieRaw   = g(row, k.garantie);
+          const nom          = g(row, k.nom);
+          const dateNaissRaw = k.dateNaissance ? row[k.dateNaissance] : "";
+          const sexeRaw      = g(row, k.sexe);
+          const cni          = g(row, k.pieceIdentite);
+          const lienRaw      = g(row, k.lien);
+          const dateAdhRaw   = k.dateAdhesion ? row[k.dateAdhesion] : "";
+          const salaireRaw   = g(row, k.salaire);
+          const garantieRaw  = g(row, k.garantie);
 
           const rowErrors: string[] = [];
 
-          // 1. Nom obligatoire
           if (!nom) {
             errors.push({ ligne, nom: "", champ: "Nom et Prénom", message: "Champ obligatoire vide" });
-            return; // ignorer toute la ligne
+            return;
           }
 
-          // 2. Date de naissance obligatoire + valide
           const dateNaissance = toDateStr(dateNaissRaw);
           if (!dateNaissance) {
             errors.push({ ligne, nom, champ: "Date de naissance", message: "Champ obligatoire vide" });
             rowErrors.push("date_naissance");
           } else if (!isValidDate(dateNaissance)) {
-            errors.push({ ligne, nom, champ: "Date de naissance", message: `Date invalide : "${String(dateNaissRaw).trim()}" — utilisez le format AAAA-MM-JJ` });
+            errors.push({ ligne, nom, champ: "Date de naissance", message: `Date invalide : "${String(dateNaissRaw).trim()}" — utilisez AAAA-MM-JJ` });
             rowErrors.push("date_naissance");
           }
 
-          // 3. Sexe obligatoire
           const sexeNorm = norm(sexeRaw);
           const sexe = sexeNorm.startsWith("f") ? "F"
                      : sexeNorm.startsWith("m") || sexeNorm.startsWith("h") ? "M"
@@ -305,12 +362,11 @@ function parseAndValidate(file: File): Promise<ParseResult> {
           if (!sexeRaw) {
             errors.push({ ligne, nom, champ: "Sexe", message: "Champ obligatoire vide (M ou F)" });
             rowErrors.push("sexe");
-          } else if (!["M","F"].includes(sexe)) {
+          } else if (!["M", "F"].includes(sexe)) {
             errors.push({ ligne, nom, champ: "Sexe", message: `Valeur invalide : "${sexeRaw}" — utilisez M ou F` });
             rowErrors.push("sexe");
           }
 
-          // 4. Pièce d'identité obligatoire + unicité
           if (!cni) {
             errors.push({ ligne, nom, champ: "N° pièce d'identité", message: "Champ obligatoire vide" });
             rowErrors.push("cni");
@@ -321,31 +377,26 @@ function parseAndValidate(file: File): Promise<ParseResult> {
             cniSeen.add(cni);
           }
 
-          // 5. Lien obligatoire
           const lienNorm = norm(lienRaw);
           let lien = LIENS_AUTORISES.find(l => norm(l) === lienNorm)
                   ?? LIENS_AUTORISES.find(l => lienNorm.includes(norm(l)))
                   ?? lienRaw;
           if (!lienRaw) {
-            errors.push({ ligne, nom, champ: "Lien", message: `Champ obligatoire vide — valeurs acceptées : ${LIENS_AUTORISES.join(", ")}` });
+            errors.push({ ligne, nom, champ: "Lien", message: `Champ obligatoire vide — valeurs : ${LIENS_AUTORISES.join(", ")}` });
             rowErrors.push("lien");
             lien = "Autre";
           }
 
-          // 6. Date d'adhésion optionnelle mais validée si présente
           const dateAdhesion = toDateStr(dateAdhRaw);
           if (dateAdhRaw && !isValidDate(dateAdhesion)) {
             errors.push({ ligne, nom, champ: "Date d'adhésion", message: `Date invalide : "${String(dateAdhRaw).trim()}" — utilisez AAAA-MM-JJ` });
           }
 
-          // 7. Garantie normalisée
           const garantieNorm = norm(garantieRaw);
           const garantie = GARANTIES_AUTORISEES.find(g => norm(g) === garantieNorm)
                         ?? (garantieRaw || "Standard");
 
-          // Même si des erreurs non bloquantes → on insère quand même le membre (erreurs de format)
-          // Erreurs bloquantes : nom vide (return ci-dessus), CNI doublon
-          if (rowErrors.includes("cni")) return; // doublon : ne pas insérer
+          if (rowErrors.includes("cni")) return;
 
           const dn = rowErrors.includes("date_naissance") ? "" : dateNaissance;
           membres.push({
@@ -379,21 +430,88 @@ function parseAndValidate(file: File): Promise<ParseResult> {
 
 const DUREES = ["1", "2", "3"].map(v => ({ value: v, label: `${v} an${+v > 1 ? "s" : ""}` }));
 
+// ─── Sous-composant : ligne tableau membres ───────────────────────────────────
+
+function MembreRow({
+  m, idx, isPrincipal, isAyantDroit, onRemove,
+}: {
+  m: MembrePopulation;
+  idx: number;
+  isPrincipal?: boolean;
+  isAyantDroit?: boolean;
+  onRemove?: () => void;
+}) {
+  return (
+    <tr className={`border-t ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"} ${isPrincipal ? "bg-blue-50/60" : ""}`}>
+      <td className="px-3 py-2">
+        {isPrincipal ? (
+          <span className="flex items-center gap-1 text-blue-700">
+            <UserCheck className="w-3 h-3" />
+            <span className="font-mono text-muted-foreground">{m.numero}</span>
+          </span>
+        ) : isAyantDroit ? (
+          <span className="flex items-center gap-1 pl-4 text-gray-400">
+            <UserPlus className="w-3 h-3" />
+            <span className="font-mono">{m.numero}</span>
+          </span>
+        ) : (
+          <span className="font-mono text-muted-foreground">{m.numero}</span>
+        )}
+      </td>
+      <td className={`px-3 py-2 font-medium ${isPrincipal ? "text-blue-800" : isAyantDroit ? "pl-6 text-gray-700" : ""}`}>
+        {m.nom}
+      </td>
+      <td className="px-3 py-2 text-muted-foreground">{m.dateNaissance || "—"}</td>
+      <td className="px-3 py-2 text-muted-foreground">{m.sexe}</td>
+      <td className="px-3 py-2 text-muted-foreground font-mono">{m.pieceIdentite}</td>
+      <td className="px-3 py-2">
+        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+          m.lien === "Principal"
+            ? "bg-blue-100 text-blue-800 border border-blue-200"
+            : "bg-gray-100 text-gray-700 border border-gray-200"
+        }`}>{m.lien}</span>
+      </td>
+      <td className="px-3 py-2">
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${TYPE_COLORS[m.type]}`}>
+          {m.type === "enfant" ? "Enfant" : m.type === "adulte" ? "Adulte" : "Âgé"}
+        </span>
+      </td>
+      {onRemove && (
+        <td className="px-2 py-2">
+          <button type="button" onClick={onRemove}
+            className="p-0.5 text-red-400 hover:text-red-600 rounded">
+            <X className="w-3 h-3" />
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+}
+
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function NewGroupePage() {
-  const navigate     = useNavigate();
+  const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const { user }       = useAuth();
 
-  const [editingId,      setEditingId]      = useState<number | null>(null);
-  const [showGaranties,  setShowGaranties]  = useState(false);
-  const [showReajust,    setShowReajust]    = useState(false);
-  const [isDragging,     setIsDragging]     = useState(false);
-  const [isLoading,      setIsLoading]      = useState(false);
-  const [fileName,       setFileName]       = useState<string>("");
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const [showErrors,     setShowErrors]     = useState(false);
+  const [editingId,       setEditingId]       = useState<number | null>(null);
+  const [showGaranties,   setShowGaranties]   = useState(false);
+  const [showReajust,     setShowReajust]     = useState(false);
+  const [isDragging,      setIsDragging]      = useState(false);
+  const [isLoading,       setIsLoading]       = useState(false);
+  const [fileName,        setFileName]        = useState<string>("");
+  const [validationErrors,setValidationErrors]= useState<ValidationError[]>([]);
+  const [showErrors,      setShowErrors]      = useState(false);
+
+  // Prévisualisation avant confirmation
+  const [previewData,  setPreviewData]  = useState<{ membres: MembrePopulation[]; errors: ValidationError[]; fileName: string } | null>(null);
+  const [showPreview,  setShowPreview]  = useState(false);
+
+  // Historique des imports
+  const [importHistory, setImportHistory] = useState<ImportRecord[]>([]);
+  const [showHistory,   setShowHistory]   = useState(false);
 
   const [formData, setFormData] = useState({
     entreprise:    "",
@@ -414,6 +532,16 @@ export default function NewGroupePage() {
 
   const decompte = useMemo(() => calcDecomptePopulation(membres), [membres]);
   const duree    = Number(formData.dureeGarantie);
+
+  // Regroupement intelligent pour affichage
+  const familleGroups = useMemo(() => groupByPrincipal(membres), [membres]);
+  const previewGroups = useMemo(
+    () => previewData ? groupByPrincipal(previewData.membres) : [],
+    [previewData],
+  );
+
+  // Charger l'historique au démarrage
+  useEffect(() => { setImportHistory(getImportHistory()); }, []);
 
   // ── Charger groupe existant ──
   useEffect(() => {
@@ -452,23 +580,53 @@ export default function NewGroupePage() {
     setValidationErrors([]);
     try {
       const result = await parseAndValidate(file);
-      setMembres(result.membres);
-      setFileName(file.name);
-      setValidationErrors(result.errors);
+      // Afficher la prévisualisation au lieu d'insérer directement
+      setPreviewData({ membres: result.membres, errors: result.errors, fileName: file.name });
+      setShowPreview(true);
 
       if (result.errors.length === 0) {
-        toast.success(`${result.membres.length} membre${result.membres.length > 1 ? "s" : ""} importé${result.membres.length > 1 ? "s" : ""} avec succès`);
+        toast.info(`${result.membres.length} membre${result.membres.length > 1 ? "s" : ""} prêt${result.membres.length > 1 ? "s" : ""} — vérifiez la prévisualisation`);
       } else if (result.membres.length === 0) {
-        toast.error(`Importation échouée — ${result.errors.length} erreur${result.errors.length > 1 ? "s" : ""} trouvée${result.errors.length > 1 ? "s" : ""}`);
+        toast.error(`${result.errors.length} erreur${result.errors.length > 1 ? "s" : ""} bloquante${result.errors.length > 1 ? "s" : ""} — corrigez le fichier`);
       } else {
-        toast.warning(`${result.membres.length} membre${result.membres.length > 1 ? "s" : ""} importé${result.membres.length > 1 ? "s" : ""} avec ${result.errors.length} erreur${result.errors.length > 1 ? "s" : ""}`);
+        toast.warning(`${result.membres.length} ligne${result.membres.length > 1 ? "s" : ""} valide${result.membres.length > 1 ? "s" : ""}, ${result.errors.length} erreur${result.errors.length > 1 ? "s" : ""} — vérifiez avant de confirmer`);
       }
-      if (result.errors.length > 0) setShowErrors(true);
     } catch (err: any) {
       toast.error(err?.message || "Erreur lors de la lecture du fichier");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // ── Confirmer l'import après prévisualisation ──
+  const confirmImport = () => {
+    if (!previewData || previewData.membres.length === 0) return;
+
+    setMembres(previewData.membres);
+    setFileName(previewData.fileName);
+    setValidationErrors(previewData.errors);
+    if (previewData.errors.length > 0) setShowErrors(true);
+
+    const nbFamilles = groupByPrincipal(previewData.membres).length;
+    const record: ImportRecord = {
+      id:         Date.now().toString(),
+      date:       new Date().toISOString(),
+      fileName:   previewData.fileName,
+      nbMembres:  previewData.membres.length,
+      nbFamilles,
+      userName:   user?.fullName || user?.email || "Utilisateur inconnu",
+    };
+    addImportRecord(record);
+    setImportHistory(getImportHistory());
+
+    setPreviewData(null);
+    setShowPreview(false);
+    toast.success(`${previewData.membres.length} membre${previewData.membres.length > 1 ? "s" : ""} importé${previewData.membres.length > 1 ? "s" : ""} — ${nbFamilles} famille${nbFamilles > 1 ? "s" : ""} détectée${nbFamilles > 1 ? "s" : ""}`);
+  };
+
+  const cancelPreview = () => {
+    setPreviewData(null);
+    setShowPreview(false);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -491,7 +649,7 @@ export default function NewGroupePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (membres.length === 0) {
-      toast.error("Veuillez importer la liste des membres via Excel");
+      toast.error("Veuillez importer et confirmer la liste des membres");
       return;
     }
     const payload = {
@@ -614,7 +772,7 @@ export default function NewGroupePage() {
                   Population à assurer
                   {membres.length > 0 && (
                     <span className="text-sm text-muted-foreground font-normal">
-                      ({membres.length} membre{membres.length > 1 ? "s" : ""})
+                      ({membres.length} membre{membres.length > 1 ? "s" : ""} · {familleGroups.length} famille{familleGroups.length > 1 ? "s" : ""})
                     </span>
                   )}
                 </h3>
@@ -630,12 +788,12 @@ export default function NewGroupePage() {
                   <p className="font-medium">Comment procéder ?</p>
                   <ol className="mt-1 space-y-0.5 text-xs list-decimal list-inside text-blue-700">
                     <li>Téléchargez le modèle Excel (bouton ci-dessus)</li>
-                    <li>Remplissez-le : une ligne par personne, en respectant les formats</li>
-                    <li>Importez le fichier complété ci-dessous</li>
+                    <li>Remplissez-le : une ligne par personne, groupées par famille</li>
+                    <li>Importez le fichier — une <strong>prévisualisation</strong> s'affichera avant l'insertion</li>
                   </ol>
                   <div className="mt-2 text-xs text-blue-600 space-y-0.5">
-                    <p><strong>Champs obligatoires * :</strong> Nom, Date de naissance (AAAA-MM-JJ), Sexe (M/F), N° pièce d'identité (unique), Lien</p>
-                    <p><strong>Lien acceptés :</strong> {LIENS_AUTORISES.join(" · ")}</p>
+                    <p><strong>Import intelligent :</strong> Le principal et ses ayants droit sont détectés automatiquement selon la colonne "Lien"</p>
+                    <p><strong>Liens acceptés :</strong> {LIENS_AUTORISES.join(" · ")}</p>
                   </div>
                 </div>
               </div>
@@ -643,12 +801,16 @@ export default function NewGroupePage() {
               {/* Zone de dépôt */}
               <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileInput} className="hidden" />
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !previewData && fileInputRef.current?.click()}
                 onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                  previewData ? "cursor-default"
+                  : "cursor-pointer"
+                } ${
                   isDragging ? "border-blue-500 bg-blue-50"
+                  : previewData ? "border-purple-400 bg-purple-50"
                   : hasErrors && membres.length === 0 ? "border-red-400 bg-red-50"
                   : hasWarnings ? "border-amber-400 bg-amber-50"
                   : membres.length > 0 ? "border-green-400 bg-green-50"
@@ -659,6 +821,16 @@ export default function NewGroupePage() {
                   <div className="flex flex-col items-center gap-2 text-blue-600">
                     <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                     <p className="text-sm font-medium">Lecture et validation du fichier…</p>
+                  </div>
+                ) : previewData ? (
+                  <div className="flex flex-col items-center gap-2 text-purple-700">
+                    <Eye className="w-10 h-10 text-purple-500" />
+                    <p className="text-sm font-semibold">{previewData.fileName}</p>
+                    <p className="text-xs text-purple-600">
+                      {previewData.membres.length} membre{previewData.membres.length > 1 ? "s" : ""} détecté{previewData.membres.length > 1 ? "s" : ""}
+                      {previewData.errors.length > 0 ? ` · ${previewData.errors.length} erreur${previewData.errors.length > 1 ? "s" : ""}` : " · aucune erreur"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Vérifiez la prévisualisation ci-dessous avant de confirmer</p>
                   </div>
                 ) : hasErrors && membres.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 text-red-700">
@@ -682,7 +854,7 @@ export default function NewGroupePage() {
                     <CheckCircle2 className="w-10 h-10 text-green-500" />
                     <p className="text-sm font-semibold">{fileName}</p>
                     <p className="text-xs text-green-600">
-                      {membres.length} membre{membres.length > 1 ? "s" : ""} importé{membres.length > 1 ? "s" : ""} sans erreur
+                      {membres.length} membre{membres.length > 1 ? "s" : ""} · {familleGroups.length} famille{familleGroups.length > 1 ? "s" : ""}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">Cliquer pour remplacer le fichier</p>
                   </div>
@@ -695,8 +867,145 @@ export default function NewGroupePage() {
                 )}
               </div>
 
-              {/* ── Panneau erreurs ── */}
-              {validationErrors.length > 0 && (
+              {/* ═══ PRÉVISUALISATION ═══ */}
+              {previewData && showPreview && (
+                <div className="rounded-xl border border-purple-200 overflow-hidden">
+                  {/* En-tête */}
+                  <div className="bg-purple-50 border-b border-purple-200 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-purple-600" />
+                      <span className="text-sm font-semibold text-purple-800">
+                        Prévisualisation — {previewData.membres.length} membre{previewData.membres.length > 1 ? "s" : ""}
+                        {" · "}{previewGroups.length} famille{previewGroups.length > 1 ? "s" : ""} détectée{previewGroups.length > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {previewData.errors.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => downloadErrorFile(previewData.errors, previewData.membres)}
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50"
+                        >
+                          <Download className="w-3 h-3" /> Rapport erreurs
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Résumé familles */}
+                  {previewGroups.length > 0 && (
+                    <div className="px-4 py-2 bg-white border-b flex gap-3 flex-wrap">
+                      {previewGroups.map((fg, fi) => (
+                        <div key={fi} className="flex items-center gap-1.5 text-xs bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5">
+                          <UserCheck className="w-3 h-3 text-blue-600 shrink-0" />
+                          <span className="font-semibold text-blue-800">
+                            {fg.principal?.nom ?? "Sans principal"}
+                          </span>
+                          {fg.ayantsDroit.length > 0 && (
+                            <span className="text-blue-500">
+                              + {fg.ayantsDroit.length} ayant{fg.ayantsDroit.length > 1 ? "s" : ""} droit
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Erreurs de validation */}
+                  {previewData.errors.length > 0 && (
+                    <div className="border-b">
+                      <div className="bg-amber-50 px-4 py-2 flex items-center gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-xs font-semibold text-amber-800">
+                          {previewData.errors.length} erreur{previewData.errors.length > 1 ? "s" : ""} détectée{previewData.errors.length > 1 ? "s" : ""} (lignes exclues de l'import)
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto max-h-36 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-gray-50 border-b">
+                            <tr>
+                              <th className="text-left px-3 py-1.5 text-muted-foreground font-medium w-16">Ligne</th>
+                              <th className="text-left px-3 py-1.5 text-muted-foreground font-medium">Nom</th>
+                              <th className="text-left px-3 py-1.5 text-muted-foreground font-medium">Champ</th>
+                              <th className="text-left px-3 py-1.5 text-muted-foreground font-medium">Erreur</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewData.errors.map((err, idx) => (
+                              <tr key={idx} className={`border-t ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                <td className="px-3 py-1.5 font-mono text-red-600 font-semibold">L.{err.ligne}</td>
+                                <td className="px-3 py-1.5 font-medium">{err.nom || "—"}</td>
+                                <td className="px-3 py-1.5 text-muted-foreground">{err.champ}</td>
+                                <td className="px-3 py-1.5 text-red-700">{err.message}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tableau membres (groupés) */}
+                  {previewData.membres.length > 0 && (
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-white border-b z-10">
+                          <tr>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium w-12">N°</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium min-w-[160px]">Nom et Prénom</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium w-28">Date naiss.</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium w-10">Sexe</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium min-w-[110px]">Pièce d'identité</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium w-24">Lien</th>
+                            <th className="text-left px-3 py-2 text-muted-foreground font-medium w-20">Catégorie</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewGroups.map((fg, fi) => (
+                            <>
+                              {fi > 0 && (
+                                <tr key={`sep-${fi}`}><td colSpan={7} className="border-t-2 border-blue-100 py-0" /></tr>
+                              )}
+                              {fg.principal && (
+                                <MembreRow key={`p-${fg.principal.numero}`} m={fg.principal} idx={fi * 2} isPrincipal />
+                              )}
+                              {fg.ayantsDroit.map((ad, ai) => (
+                                <MembreRow key={`ad-${ad.numero}`} m={ad} idx={ai} isAyantDroit />
+                              ))}
+                            </>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Boutons confirmation */}
+                  <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between gap-3">
+                    <button type="button" onClick={cancelPreview}
+                      className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 px-3 py-1.5 rounded-lg border hover:bg-gray-100 transition-colors">
+                      <X className="w-4 h-4" /> Annuler
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors">
+                        <FileSpreadsheet className="w-4 h-4" /> Changer de fichier
+                      </button>
+                      <button
+                        type="button"
+                        onClick={confirmImport}
+                        disabled={previewData.membres.length === 0}
+                        className="flex items-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Confirmer l'import ({previewData.membres.length} membre{previewData.membres.length > 1 ? "s" : ""})
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Panneau erreurs (après confirmation) ── */}
+              {!previewData && validationErrors.length > 0 && (
                 <div className="rounded-xl border overflow-hidden">
                   <div
                     className={`flex items-center justify-between px-4 py-3 cursor-pointer ${
@@ -724,7 +1033,6 @@ export default function NewGroupePage() {
                       {showErrors ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                     </div>
                   </div>
-
                   {showErrors && (
                     <div className="overflow-x-auto max-h-56 overflow-y-auto">
                       <table className="w-full text-xs">
@@ -752,12 +1060,12 @@ export default function NewGroupePage() {
                 </div>
               )}
 
-              {/* Tableau membres valides */}
-              {membres.length > 0 && (
+              {/* Tableau membres valides (vue groupée) */}
+              {!previewData && membres.length > 0 && (
                 <div className="rounded-xl border overflow-hidden">
                   <div className="bg-gray-50 px-4 py-2.5 flex justify-between items-center border-b">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Membres valides ({membres.length})
+                      Membres confirmés ({membres.length}) · {familleGroups.length} famille{familleGroups.length > 1 ? "s" : ""}
                     </p>
                     <Button type="button" variant="ghost" size="sm"
                       className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
@@ -769,7 +1077,7 @@ export default function NewGroupePage() {
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 bg-white border-b z-10">
                         <tr>
-                          <th className="text-left px-3 py-2 text-muted-foreground font-medium w-8">N°</th>
+                          <th className="text-left px-3 py-2 text-muted-foreground font-medium w-12">N°</th>
                           <th className="text-left px-3 py-2 text-muted-foreground font-medium min-w-[160px]">Nom et Prénom</th>
                           <th className="text-left px-3 py-2 text-muted-foreground font-medium w-28">Date naiss.</th>
                           <th className="text-left px-3 py-2 text-muted-foreground font-medium w-10">Sexe</th>
@@ -780,30 +1088,105 @@ export default function NewGroupePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {membres.map((m, idx) => (
-                          <tr key={idx} className={`border-t ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                            <td className="px-3 py-2 text-muted-foreground">{m.numero}</td>
-                            <td className="px-3 py-2 font-medium">{m.nom}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{m.dateNaissance || "—"}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{m.sexe}</td>
-                            <td className="px-3 py-2 text-muted-foreground font-mono">{m.pieceIdentite}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{m.lien}</td>
-                            <td className="px-3 py-2">
-                              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${TYPE_COLORS[m.type]}`}>
-                                {m.type === "enfant" ? "Enfant" : m.type === "adulte" ? "Adulte" : "Âgé"}
-                              </span>
-                            </td>
-                            <td className="px-2 py-2">
-                              <button type="button" onClick={() => removeMembre(idx)}
-                                className="p-0.5 text-red-400 hover:text-red-600 rounded">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </td>
-                          </tr>
+                        {familleGroups.map((fg, fi) => (
+                          <>
+                            {fi > 0 && (
+                              <tr key={`sep-${fi}`}><td colSpan={8} className="border-t-2 border-blue-100 py-0" /></tr>
+                            )}
+                            {fg.principal && (
+                              <MembreRow
+                                key={`p-${fg.principal.numero}`}
+                                m={fg.principal}
+                                idx={fi * 2}
+                                isPrincipal
+                                onRemove={() => removeMembre(membres.indexOf(fg.principal!))}
+                              />
+                            )}
+                            {fg.ayantsDroit.map((ad, ai) => (
+                              <MembreRow
+                                key={`ad-${ad.numero}`}
+                                m={ad}
+                                idx={ai}
+                                isAyantDroit
+                                onRemove={() => removeMembre(membres.indexOf(ad))}
+                              />
+                            ))}
+                          </>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* ═══ HISTORIQUE DES IMPORTS ═══ */}
+              {importHistory.length > 0 && (
+                <div className="rounded-xl border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-b"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-semibold text-gray-700">
+                        Historique des imports ({importHistory.length})
+                      </span>
+                    </div>
+                    {showHistory ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </button>
+
+                  {showHistory && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-muted-foreground font-medium">Date</th>
+                            <th className="text-left px-4 py-2 text-muted-foreground font-medium min-w-[160px]">Fichier</th>
+                            <th className="text-left px-4 py-2 text-muted-foreground font-medium">Membres</th>
+                            <th className="text-left px-4 py-2 text-muted-foreground font-medium">Familles</th>
+                            <th className="text-left px-4 py-2 text-muted-foreground font-medium min-w-[140px]">Importé par</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importHistory.map((rec, idx) => {
+                            const d = new Date(rec.date);
+                            const dateStr = d.toLocaleDateString("fr-FR", {
+                              day: "2-digit", month: "2-digit", year: "numeric",
+                            });
+                            const timeStr = d.toLocaleTimeString("fr-FR", {
+                              hour: "2-digit", minute: "2-digit",
+                            });
+                            return (
+                              <tr key={rec.id} className={`border-t ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
+                                <td className="px-4 py-2.5 text-muted-foreground">
+                                  <span className="font-medium text-gray-800">{dateStr}</span>
+                                  <span className="ml-1 text-gray-400">{timeStr}</span>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <span className="flex items-center gap-1.5 text-gray-700">
+                                    <FileSpreadsheet className="w-3 h-3 text-green-600 shrink-0" />
+                                    <span className="truncate max-w-[200px]" title={rec.fileName}>{rec.fileName}</span>
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
+                                    <Users className="w-2.5 h-2.5" /> {rec.nbMembres}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-semibold">
+                                    <UserCheck className="w-2.5 h-2.5" /> {rec.nbFamilles}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-700 font-medium">{rec.userName}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -909,9 +1292,13 @@ export default function NewGroupePage() {
               )}
             </section>
 
-            <Button type="submit" className="w-full py-6 text-base" disabled={membres.length === 0}>
-              {editingId ? "Modifier le groupe" : "Créer le groupe"}
-              {membres.length > 0 && ` (${membres.length} membre${membres.length > 1 ? "s" : ""})`}
+            <Button type="submit" className="w-full py-6 text-base" disabled={membres.length === 0 || !!previewData}>
+              {previewData
+                ? "Confirmez l'import avant d'enregistrer"
+                : editingId
+                  ? `Modifier le groupe${membres.length > 0 ? ` (${membres.length} membres)` : ""}`
+                  : `Créer le groupe${membres.length > 0 ? ` (${membres.length} membres)` : ""}`
+              }
             </Button>
           </form>
         </Card>
