@@ -54,7 +54,7 @@ const [form, setForm]         = useState({ nom: "", email: "", telephone: "", su
       <nav className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-[min(860px,calc(100vw-2rem))] bg-white/15 backdrop-blur-md border border-white/30 rounded-2xl h-12 flex items-center px-4">
         <div className="flex items-center justify-between w-full">
           <button onClick={() => navigate("/")} className="flex items-center">
-            <img src="/logo1.png" alt="Logo" className="h-9 w-auto object-contain" />
+            <img src="/logo1.png" alt="Logo" className="h-11 w-auto object-contain" />
           </button>
           <div className="hidden md:flex items-center gap-1">
             <button onClick={() => navigate("/#features")}     className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-800 hover:text-blue-600 hover:bg-white/40 transition-all">Fonctionnalités</button>

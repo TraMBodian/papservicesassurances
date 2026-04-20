@@ -183,7 +183,7 @@ const Index = () => {
         <div className="px-4 xl:px-5">
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center group cursor-pointer shrink-0" onClick={() => navigate('/')}>
-              <img src="/logo1.png" alt="Logo" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
+              <img src="/logo1.png" alt="Logo" className="h-11 w-auto object-contain group-hover:scale-105 transition-transform" />
             </div>
 
             <div className="hidden md:flex items-center gap-0.5">
