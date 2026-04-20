@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
+import ClaudeChat from "@/components/ClaudeChat";
+import { chatConditionsGenerales, ClaudeMessage } from "@/services/claudeService";
 
 // ─── Données structurées du document ─────────────────────────────────────────
 
@@ -604,6 +606,26 @@ export default function ConditionsGeneralesPage() {
           © {CG_DATE} Papy Services Assurances — Tous droits réservés
         </p>
       </div>
+
+      {/* Chatbot IA sur les conditions générales */}
+      <ClaudeChat
+        title="Assistant Conditions Générales"
+        placeholder="Ex : Quelles sont les exclusions ?"
+        systemContext="les conditions générales d'assurance maladie"
+        suggestedQuestions={[
+          "Quels actes sont pris en charge ?",
+          "Quelles sont les principales exclusions ?",
+          "Comment fonctionne le remboursement ?",
+          "Quelles sont les conditions de souscription ?",
+        ]}
+        onAsk={(question: string, history: ClaudeMessage[]) => {
+          const texte = CHAPITRES.map(ch =>
+            `${ch.numero}. ${ch.titre}\n` +
+            ch.articles.map(a => `  - ${a.titre}`).join("\n")
+          ).join("\n\n");
+          return chatConditionsGenerales(question, history, texte);
+        }}
+      />
     </div>
   );
 }
