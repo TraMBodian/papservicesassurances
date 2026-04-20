@@ -46,21 +46,21 @@ export const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-3 px-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+        <button className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-muted/60 transition-colors outline-none">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white text-xs font-bold">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="hidden md:flex flex-col items-start">
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-xs font-semibold text-gray-900 leading-tight">
               {user.full_name || user.email}
             </span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${roleBgColor}`}>
+            <span className={`text-[10px] px-1.5 py-px rounded-full font-medium ${roleBgColor}`}>
               {roleLabel}
             </span>
           </div>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
