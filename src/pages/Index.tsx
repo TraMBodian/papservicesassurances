@@ -17,7 +17,7 @@ function FeedbackForm() {
     setAvis(p => ({ ...p, [k]: e.target.value }));
   const active = hover || avis.note;
   return (
-    <section className="py-24 mt-10 mx-4 relative z-[45] rounded-[50px] overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 60%, #db2777 100%)' }}>
+    <section className="py-24 mt-10 mx-4 relative z-[45] rounded-[50px] overflow-hidden bg-blue-600">
       {/* Cercles décoratifs */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />

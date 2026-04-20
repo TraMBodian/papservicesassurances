@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -7,24 +7,14 @@ import { Send, Menu, CheckCircle2 } from "lucide-react";
 export default function ContactPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const [form, setForm]         = useState({ nom: "", email: "", telephone: "", sujet: "", message: "" });
+const [form, setForm]         = useState({ nom: "", email: "", telephone: "", sujet: "", message: "" });
   const [loading, setLoading]   = useState(false);
   const [sent, setSent]         = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const h = () => setScrolled(el.scrollTop > 60);
-    el.addEventListener("scroll", h);
-    return () => el.removeEventListener("scroll", h);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,67 +31,56 @@ export default function ContactPage() {
   const infos = [
     {
       icon: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.92 14 19.79 19.79 0 0 1 1.08 5.41 2 2 0 0 1 3 3h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 10.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 17z"/></svg>,
-      color: "from-blue-500 to-blue-600", label: "Téléphone", value: "+221 77 527 97 27", sub: "Lun – Ven, 8h – 18h"
+      color: "bg-blue-600", label: "Téléphone", value: "+221 77 527 97 27", sub: "Lun – Ven, 8h – 18h"
     },
     {
       icon: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
-      color: "from-purple-500 to-purple-600", label: "Email", value: "bassniang7@yahoo.fr", sub: "Réponse sous 24h"
+      color: "bg-blue-600", label: "Email", value: "bassniang7@yahoo.fr", sub: "Réponse sous 24h"
     },
     {
       icon: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
-      color: "from-rose-500 to-rose-600", label: "Adresse", value: "Rufisque Ouest, Cité Poste, Lot N°67", sub: "Dakar, Sénégal"
+      color: "bg-blue-600", label: "Adresse", value: "Rufisque Ouest, Cité Poste, Lot N°67", sub: "Dakar, Sénégal"
     },
     {
       icon: <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-      color: "from-emerald-500 to-emerald-600", label: "Horaires", value: "Lundi – Vendredi", sub: "8h00 – 18h00"
+      color: "bg-blue-600", label: "Horaires", value: "Lundi – Vendredi", sub: "8h00 – 18h00"
     },
   ];
 
   return (
-    <div ref={scrollRef} style={{ overflowY: "auto", height: "100vh" }}>
+    <div style={{ overflowY: "auto", height: "100vh" }}>
 
-      {/* ── Navbar identique à l'accueil ────────────────────────────────────── */}
-      <nav className={`fixed z-[100] transition-all duration-300 ${
-        scrolled
-          ? "top-3 left-4 right-4 bg-white/95 backdrop-blur-lg shadow-xl rounded-3xl border border-blue-100"
-          : "top-0 left-0 right-0 bg-transparent"
-      }`}>
-        <div className="px-6">
-          <div className="flex items-center justify-between h-20">
-            <button onClick={() => navigate("/")} className="flex items-center gap-3 group">
-              <img src="/logo1.png" alt="Logo" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
-              <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Papy Services</span>
-                <p className={`text-xs -mt-1 ${scrolled ? "text-gray-500" : "text-white/70"}`}>Assurances</p>
-              </div>
-            </button>
-            <div className="hidden md:flex items-center gap-1">
-              <button onClick={() => navigate("/#features")}     className={`px-4 py-2 rounded-lg transition-all font-medium ${scrolled ? "text-gray-700 hover:text-blue-600 hover:bg-blue-50" : "text-white hover:bg-white/20"}`}>Fonctionnalités</button>
-              <button onClick={() => navigate("/#testimonials")} className={`px-4 py-2 rounded-lg transition-all font-medium ${scrolled ? "text-gray-700 hover:text-blue-600 hover:bg-blue-50" : "text-white hover:bg-white/20"}`}>Témoignages</button>
-              <button onClick={() => navigate("/contact")}       className={`px-4 py-2 rounded-lg transition-all font-medium ${scrolled ? "text-blue-600 bg-blue-50" : "text-white bg-white/20"}`}>Contact</button>
-              <div className={`w-px h-6 mx-2 ${scrolled ? "bg-gray-300" : "bg-white/40"}`} />
-              <Button onClick={() => navigate("/login")} variant="ghost" className={`font-medium ${scrolled ? "text-gray-700 hover:text-blue-600 hover:bg-blue-50" : "text-white hover:bg-white/20"}`}>Connexion</Button>
-              <Button onClick={() => navigate("/login")} className="ml-2 shadow-lg">Commencer</Button>
-            </div>
-            <button className="md:hidden p-2 hover:bg-white/20 rounded-lg" onClick={() => setMobileOpen(!mobileOpen)}>
-              <Menu className={`w-6 h-6 ${scrolled ? "text-gray-700" : "text-white"}`} />
-            </button>
+      {/* ── Navbar ────────────────────────────────────────────────────────── */}
+      <nav className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-[min(860px,calc(100vw-2rem))] bg-white/15 backdrop-blur-md border border-white/30 rounded-2xl h-12 flex items-center px-4">
+        <div className="flex items-center justify-between w-full">
+          <button onClick={() => navigate("/")} className="flex items-center">
+            <img src="/logo1.png" alt="Logo" className="h-9 w-auto object-contain" />
+          </button>
+          <div className="hidden md:flex items-center gap-1">
+            <button onClick={() => navigate("/#features")}     className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-800 hover:text-blue-600 hover:bg-white/40 transition-all">Fonctionnalités</button>
+            <button onClick={() => navigate("/#testimonials")} className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-800 hover:text-blue-600 hover:bg-white/40 transition-all">Témoignages</button>
+            <button onClick={() => navigate("/contact")}       className="px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-white/40 transition-all">Contact</button>
+            <div className="w-px h-5 mx-1 bg-white/40" />
+            <Button onClick={() => navigate("/login")} variant="ghost" className="text-sm font-medium text-gray-800 hover:text-blue-600 hover:bg-white/40 h-8 px-3">Connexion</Button>
+            <Button onClick={() => navigate("/login")} className="ml-1 h-8 px-3 text-sm">Commencer</Button>
           </div>
-          {mobileOpen && (
-            <div className="md:hidden py-4 space-y-2 border-t border-blue-100">
-              <button onClick={() => navigate("/")} className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Accueil</button>
-              <button onClick={() => navigate("/conditions-generales")} className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg font-medium">Conditions Générales</button>
-              <div className="border-t border-blue-100 my-2" />
-              <Button onClick={() => navigate("/login")} variant="outline" className="w-full">Connexion</Button>
-              <Button onClick={() => navigate("/login")} className="w-full">Commencer</Button>
-            </div>
-          )}
+          <button className="md:hidden p-2 hover:bg-white/20 rounded-lg" onClick={() => setMobileOpen(!mobileOpen)}>
+            <Menu className="w-5 h-5 text-gray-800" />
+          </button>
         </div>
+        {mobileOpen && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 px-4 space-y-1 md:hidden">
+            <button onClick={() => navigate("/")} className="block w-full text-left px-3 py-2.5 text-gray-700 hover:bg-blue-50 rounded-lg text-sm font-medium">Accueil</button>
+            <button onClick={() => navigate("/conditions-generales")} className="block w-full text-left px-3 py-2.5 text-gray-700 hover:bg-blue-50 rounded-lg text-sm font-medium">Conditions Générales</button>
+            <div className="border-t border-gray-100 my-1" />
+            <Button onClick={() => navigate("/login")} variant="outline" className="w-full text-sm h-9">Connexion</Button>
+            <Button onClick={() => navigate("/login")} className="w-full text-sm h-9">Commencer</Button>
+          </div>
+        )}
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div className="relative min-h-[420px] flex items-center justify-center overflow-hidden pt-20"
-        style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #7c3aed 60%, #db2777 100%)" }}>
+      <div className="relative min-h-[420px] flex items-center justify-center overflow-hidden pt-20 bg-blue-600">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
           <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
@@ -127,7 +106,7 @@ export default function ContactPage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 {infos.map(({ icon, color, label, value, sub }) => (
                   <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center text-white mb-3`}>
+                    <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center text-white mb-3`}>
                       {icon}
                     </div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
@@ -199,7 +178,7 @@ export default function ContactPage() {
                       className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 resize-none" />
                   </div>
                   <button type="submit" disabled={loading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2">
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                     {loading ? "Envoi en cours…" : <><Send className="w-4 h-4" />Envoyer le message</>}
                   </button>
                 </form>
