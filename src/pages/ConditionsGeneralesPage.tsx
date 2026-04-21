@@ -569,6 +569,26 @@ export default function ConditionsGeneralesPage() {
         </p>
       </div>
 
+      {/* Footer sobre */}
+      <footer className="border-t border-gray-100 bg-gray-50 py-8 px-4">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <img src="/logo1.png" alt="Logo" className="h-7 w-auto object-contain" />
+            <span className="text-sm font-semibold text-gray-700">Papy Services Assurances</span>
+          </div>
+          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-gray-500">
+            <a href="/contact" className="hover:text-blue-600 transition-colors">Contact</a>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            <span className="text-gray-600">Rufisque Ouest, Cité Poste Lot N°67, Dakar</span>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            <a href="/contact" className="hover:text-blue-600 transition-colors">Support</a>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            <button onClick={() => {}} className="hover:text-blue-600 transition-colors">Politique de confidentialité</button>
+          </nav>
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} Tous droits réservés</p>
+        </div>
+      </footer>
+
       {/* Chatbot IA sur les conditions générales */}
       <ClaudeChat
         title="Assistant Conditions Générales"
