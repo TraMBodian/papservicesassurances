@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Download, FileText, Printer } from "lucide-react";
 import ClaudeChat from "@/components/ClaudeChat";
 import { chatConditionsGenerales, ClaudeMessage } from "@/services/claudeService";
 
 // ─── Données structurées du document ─────────────────────────────────────────
 
-const CG_DATE = "2024";
+const CG_DATE        = "2024";
+const CG_VERSION     = "1.0";
+const CG_DATE_EFFET  = "01 janvier 2026";
 
 interface Article {
   titre: string;
@@ -478,14 +481,16 @@ function ChapitreSection({ ch }: { ch: Chapitre }) {
 export default function ConditionsGeneralesPage() {
   const navigate  = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState("ch-1");
+  const [active,   setActive]   = useState("ch-1");
+  const [scrolled, setScrolled] = useState(false);
 
-  // Scroll spy
+  // Scroll spy + shrink navbar
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
 
     const handleScroll = () => {
+      setScrolled(container.scrollTop > 60);
       for (const { id } of [...NAV_SECTIONS].reverse()) {
         const el = document.getElementById(id);
         if (el && el.getBoundingClientRect().top <= 100) {
@@ -501,44 +506,57 @@ export default function ConditionsGeneralesPage() {
   }, []);
 
   const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById(id);
+    if (el) scrollRef.current?.scrollTo({ top: el.offsetTop - 110, behavior: "smooth" });
   };
+
+  const handlePrint = () => window.print();
 
   return (
     <div ref={scrollRef} style={{ overflowY: "auto", height: "100vh" }}>
 
-      {/* Navbar flottante — identique à la page d'accueil */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-[min(860px,calc(100vw-2rem))] bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl h-12 flex items-center px-4 shadow-sm">
-        <div className="flex items-center justify-between w-full">
-          <button onClick={() => navigate(-1)} className="flex items-center">
-            <img src="/logo1.png" alt="Logo" className="h-11 w-auto object-contain" />
+      {/* ── Navbar shrink ─────────────────────────────────────────────────── */}
+      <div className={`fixed left-1/2 -translate-x-1/2 z-[100] bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm flex items-center px-4 transition-all duration-300 ${
+        scrolled
+          ? "top-2 w-[min(520px,calc(100vw-2rem))] h-10"
+          : "top-3 w-[min(860px,calc(100vw-2rem))] h-12"
+      }`}>
+        <div className="flex items-center justify-between w-full gap-2">
+          <button onClick={() => navigate(-1)} className="flex items-center shrink-0">
+            <img src="/logo1.png" alt="Logo" className={`w-auto object-contain transition-all duration-300 ${scrolled ? "h-7" : "h-10"}`} />
           </button>
-          <div className="hidden md:flex items-center gap-1">
-            <a href="/#features"     className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all">Fonctionnalités</a>
-            <a href="/#testimonials" className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all">Témoignages</a>
-            <a href="/contact"       className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all">Contact</a>
-            <div className="w-px h-5 mx-1 bg-gray-200" />
+
+          {!scrolled && (
+            <div className="hidden md:flex items-center gap-1">
+              <a href="/#features"     className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all">Fonctionnalités</a>
+              <a href="/#testimonials" className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all">Témoignages</a>
+              <a href="/contact"       className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all">Contact</a>
+              <div className="w-px h-5 mx-1 bg-gray-200" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-1 shrink-0 ml-auto">
+            {scrolled && <span className="text-xs text-gray-400 hidden sm:block mr-2">Conditions Générales v{CG_VERSION}</span>}
             <button onClick={() => navigate('/login')} className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all">Connexion</button>
-            <button onClick={() => navigate('/login')} className="ml-1 px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors">Commencer</button>
+            {!scrolled && (
+              <button onClick={() => navigate('/login')} className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors">Commencer</button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Barre chapitres — fixe sous la navbar flottante */}
-      <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-50 w-[min(900px,calc(100vw-2rem))] bg-white/90 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm">
+      {/* ── Barre chapitres fixe ──────────────────────────────────────────── */}
+      <div className={`fixed left-1/2 -translate-x-1/2 z-50 w-[min(900px,calc(100vw-2rem))] bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm transition-all duration-300 ${
+        scrolled ? "top-[52px]" : "top-[64px]"
+      }`}>
         <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex items-center gap-1 px-4 py-2 min-w-max">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-2">Chapitres :</span>
             {NAV_SECTIONS.map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => scrollTo(id)}
+              <button key={id} onClick={() => scrollTo(id)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  active === id
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                }`}
-              >
+                  active === id ? "text-blue-600 bg-blue-50" : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                }`}>
                 {label}
               </button>
             ))}
@@ -546,14 +564,57 @@ export default function ConditionsGeneralesPage() {
         </div>
       </div>
 
-      {/* Contenu — padding-top pour les deux barres fixes */}
-      <div className="max-w-4xl mx-auto px-4 pt-32 pb-10 space-y-14">
+      {/* ── Contenu ───────────────────────────────────────────────────────── */}
+      <div className="max-w-4xl mx-auto px-4 pt-32 pb-10 space-y-12">
 
-        {/* Intro */}
-        <div className="text-center border-b border-gray-200 pb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Conditions Générales d'Assurance Santé</h1>
-          <p className="text-sm text-gray-500 mt-2">Police d'Assurance Santé Maladie — Papy Services Assurances</p>
-          <p className="text-xs text-gray-400 mt-1">{CG_DATE}</p>
+        {/* En-tête institutionnel */}
+        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+          <div className="bg-blue-600 px-6 py-5 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-100 mb-1">Document officiel</p>
+                <h1 className="text-xl sm:text-2xl font-bold leading-snug">Conditions Générales d'Assurance Santé</h1>
+                <p className="text-blue-100 text-sm mt-1">Police d'Assurance Maladie — Papy Services Assurances</p>
+              </div>
+              <img src="/logo1.png" alt="Logo" className="h-12 w-auto object-contain opacity-90 shrink-0 hidden sm:block" />
+            </div>
+          </div>
+          <div className="bg-gray-50 px-6 py-4 flex flex-wrap gap-x-8 gap-y-2 text-sm border-t border-gray-200">
+            <div><span className="text-gray-400 text-xs uppercase tracking-wide block">Version</span><span className="font-semibold text-gray-800">v{CG_VERSION}</span></div>
+            <div><span className="text-gray-400 text-xs uppercase tracking-wide block">Date d'effet</span><span className="font-semibold text-gray-800">{CG_DATE_EFFET}</span></div>
+            <div><span className="text-gray-400 text-xs uppercase tracking-wide block">Réglementation</span><span className="font-semibold text-gray-800">Code CIMA</span></div>
+            <div><span className="text-gray-400 text-xs uppercase tracking-wide block">Émetteur</span><span className="font-semibold text-gray-800">Papy Services Assurances</span></div>
+          </div>
+          {/* Boutons PDF */}
+          <div className="px-6 py-4 flex flex-wrap gap-3 border-t border-gray-100 bg-white">
+            <button onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-sm">
+              <Download size={15} /> Télécharger le PDF
+            </button>
+            <button onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors">
+              <Printer size={15} /> Imprimer
+            </button>
+          </div>
+        </div>
+
+        {/* Table des matières */}
+        <div className="border border-gray-200 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={16} className="text-blue-600" />
+            <h2 className="text-base font-bold text-gray-900">Table des matières</h2>
+          </div>
+          <ol className="space-y-1.5">
+            {NAV_SECTIONS.map(({ id, label }, i) => (
+              <li key={id}>
+                <button onClick={() => scrollTo(id)}
+                  className="flex items-center gap-3 w-full text-left group hover:text-blue-600 transition-colors">
+                  <span className="text-xs font-mono text-gray-400 w-5 shrink-0">{i + 1}.</span>
+                  <span className="flex-1 text-sm text-gray-700 group-hover:text-blue-600 border-b border-dashed border-gray-200 pb-0.5">{label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Chapitres */}
@@ -564,26 +625,26 @@ export default function ConditionsGeneralesPage() {
         <section id="ch-5">  <ChapitreSection ch={CHAPITRES[4]} /></section>
         <section id="ch-cs"> <ChapitreSection ch={CONVENTIONS}  /></section>
 
-        <p className="text-center text-xs text-gray-400 pb-8">
-          © {CG_DATE} Papy Services Assurances — Tous droits réservés
+        <p className="text-center text-xs text-gray-400 pb-4">
+          © {CG_DATE} Papy Services Assurances — Tous droits réservés — Régi par le Code CIMA
         </p>
       </div>
 
-      {/* Footer sobre */}
-      <footer className="border-t border-gray-100 bg-gray-50 py-8 px-4">
+      {/* ── Footer sobre ──────────────────────────────────────────────────── */}
+      <footer className="border-t border-gray-200 bg-gray-50 py-8 px-4">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/logo1.png" alt="Logo" className="h-7 w-auto object-contain" />
             <span className="text-sm font-semibold text-gray-700">Papy Services Assurances</span>
           </div>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-gray-500">
+            <button onClick={() => scrollTo("ch-1")} className="hover:text-blue-600 transition-colors">Conditions Générales</button>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            <button onClick={() => scrollTo("ch-1")} className="hover:text-blue-600 transition-colors">Garanties</button>
+            <span className="text-gray-300 hidden sm:inline">·</span>
             <a href="/contact" className="hover:text-blue-600 transition-colors">Contact</a>
             <span className="text-gray-300 hidden sm:inline">·</span>
-            <span className="text-gray-600">Rufisque Ouest, Cité Poste Lot N°67, Dakar</span>
-            <span className="text-gray-300 hidden sm:inline">·</span>
-            <a href="/contact" className="hover:text-blue-600 transition-colors">Support</a>
-            <span className="text-gray-300 hidden sm:inline">·</span>
-            <button onClick={() => {}} className="hover:text-blue-600 transition-colors">Politique de confidentialité</button>
+            <button className="hover:text-blue-600 transition-colors">Politique de confidentialité</button>
           </nav>
           <p className="text-xs text-gray-400">© {new Date().getFullYear()} Tous droits réservés</p>
         </div>
