@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Eye, Loader2, Users, UserCheck, ChevronDown, ChevronUp, X } from "@/components/ui/Icons";
+import { Plus, Search, Filter, Eye, Loader2, Users, UserCheck, X, Zap } from "@/components/ui/Icons";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { DataService } from "@/services/dataService";
 import { Assure } from "@/types/insurance";
+import { usePusherChannel } from "@/hooks/usePusherChannel";
+import { CH, EV, type AssureEventPayload } from "@/services/pusherService";
+import { toast } from "sonner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,13 +52,14 @@ function fmtDate(d?: string) {
 export default function AssuresPage() {
   const navigate = useNavigate();
 
-  const [search,   setSearch]   = useState("");
-  const [assures,  setAssures]  = useState<Assure[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
-  const [typeFilter, setTypeFilter]   = useState<"all" | "FAMILLE" | "GROUPE">("all");
+  const [search,       setSearch]       = useState("");
+  const [assures,      setAssures]      = useState<Assure[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [typeFilter,   setTypeFilter]   = useState<"all" | "FAMILLE" | "GROUPE">("all");
   const [statutFilter, setStatutFilter] = useState<"all" | "ACTIF" | "SUSPENDU" | "RESILIE">("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters,  setShowFilters]  = useState(false);
+  const [liveCount,    setLiveCount]    = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -70,6 +74,33 @@ export default function AssuresPage() {
       }
     })();
   }, []);
+
+  // ── Pusher : mises à jour live de la liste ────────────────────────────────
+  usePusherChannel(CH.assures, {
+    [EV.assureCreated]: (data: unknown) => {
+      const { assure } = data as AssureEventPayload;
+      if (!assure) return;
+      const a = assure as unknown as Assure;
+      setAssures(prev => {
+        if (prev.find(x => x.id === a.id)) return prev;
+        return [a, ...prev];
+      });
+      setLiveCount(n => n + 1);
+      toast.success(`Nouvel assuré : ${a.prenom ?? ""} ${a.nom ?? ""}`.trim());
+    },
+    [EV.assureUpdated]: (data: unknown) => {
+      const { assure } = data as AssureEventPayload;
+      if (!assure) return;
+      const a = assure as unknown as Assure;
+      setAssures(prev => prev.map(x => x.id === a.id ? a : x));
+    },
+    [EV.assureDeleted]: (data: unknown) => {
+      const { id } = data as AssureEventPayload;
+      if (!id) return;
+      setAssures(prev => prev.filter(x => String(x.id) !== String(id)));
+      toast.info("Un assuré a été retiré de la liste.");
+    },
+  });
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -116,6 +147,16 @@ export default function AssuresPage() {
 
         {/* ── Barre d'actions ── */}
         <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+          {liveCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full w-fit"
+            >
+              <Zap size={11} />
+              {liveCount} mise{liveCount > 1 ? "s" : ""} à jour en direct
+            </motion.div>
+          )}
           <div className="flex items-center gap-2 flex-1 max-w-full sm:max-w-md">
             <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-lg border bg-card text-sm">
               <Search size={14} className="text-muted-foreground shrink-0" />

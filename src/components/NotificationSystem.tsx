@@ -1,8 +1,10 @@
-import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw, WifiOff, Pill, CreditCard } from "@/components/ui/Icons";
+import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw, WifiOff, Pill, CreditCard, Zap } from "@/components/ui/Icons";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import { notificationStore, type LocalNotification } from "@/services/notificationStore";
+import { usePusherChannel } from "@/hooks/usePusherChannel";
+import { CH, EV, type NotifPayload, getPusher } from "@/services/pusherService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +52,9 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; color: st
   default:         { icon: <Bell size={14} />,           bg: "bg-gray-100",    color: "text-gray-600"   },
 };
 
-const POLL_INTERVAL = 60_000; // 60 secondes
+// Polling ralenti à 5 min quand Pusher est actif, 60 s sinon
+const POLL_INTERVAL_PUSHER = 5 * 60_000;
+const POLL_INTERVAL_FALLBACK = 60_000;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -64,6 +68,7 @@ export const NotificationSystem = () => {
   const [localNotifs,      setLocalNotifs]      = useState<LocalNotification[]>(() => notificationStore.getAll());
   const [loading,          setLoading]          = useState(false);
   const [backendDown,      setBackendDown]      = useState(false);
+  const [pusherLive,       setPusherLive]       = useState(false);
   // readIds chargés depuis localStorage au démarrage
   const [readIds, setReadIds] = useState<Set<string>>(loadReadIds);
 
@@ -102,12 +107,40 @@ export const NotificationSystem = () => {
     }
   }, []); // aucune dépendance — stable pour tout le cycle de vie
 
-  // Chargement initial + polling toutes les 60 secondes
+  // ── Pusher : réception instantanée ─────────────────────────────────────────
+  usePusherChannel(CH.notifications, {
+    [EV.notification]: (data: unknown) => {
+      const n = data as NotifPayload;
+      setRawNotifications(prev => {
+        if (prev.find(x => String(x.id) === String(n.id))) return prev;
+        return [{ ...n, id: String(n.id) }, ...prev];
+      });
+    },
+  });
+
+  // Détecte si Pusher est connecté pour adapter l'intervalle de polling
+  useEffect(() => {
+    const pusher = getPusher();
+    if (!pusher) return;
+    const onConnected    = () => setPusherLive(true);
+    const onDisconnected = () => setPusherLive(false);
+    pusher.connection.bind('connected',    onConnected);
+    pusher.connection.bind('disconnected', onDisconnected);
+    pusher.connection.bind('failed',       onDisconnected);
+    return () => {
+      pusher.connection.unbind('connected',    onConnected);
+      pusher.connection.unbind('disconnected', onDisconnected);
+      pusher.connection.unbind('failed',       onDisconnected);
+    };
+  }, []);
+
+  // Chargement initial + polling adaptatif (60 s sans Pusher, 5 min avec)
   useEffect(() => {
     fetchNotifications();
-    const timer = setInterval(fetchNotifications, POLL_INTERVAL);
+    const interval = pusherLive ? POLL_INTERVAL_PUSHER : POLL_INTERVAL_FALLBACK;
+    const timer = setInterval(fetchNotifications, interval);
     return () => clearInterval(timer);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, pusherLive]);
 
   // Écoute les événements de notification locale (consultation, prescription…)
   useEffect(() => {
@@ -191,6 +224,12 @@ export const NotificationSystem = () => {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-sm text-gray-900">Notifications</h3>
+              {pusherLive && (
+                <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
+                  <Zap size={9} />
+                  Live
+                </span>
+              )}
               {unread > 0 && (
                 <span className="text-xs font-medium bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">
                   {unread} non lue{unread > 1 ? "s" : ""}
@@ -308,7 +347,9 @@ export const NotificationSystem = () => {
               <p className="text-xs text-muted-foreground">
                 {backendDown
                   ? "Serveur indisponible · cliquez ↺ pour réessayer"
-                  : "Actualisé toutes les 60 secondes"
+                  : pusherLive
+                    ? "Notifications en temps réel ⚡"
+                    : "Actualisé toutes les 60 secondes"
                 }
               </p>
             </div>

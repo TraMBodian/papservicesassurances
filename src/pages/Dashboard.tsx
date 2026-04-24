@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Shield, FileText, Banknote, Stethoscope, Pill,
@@ -24,6 +24,8 @@ interface SessionEntry {
 }
 import { apiClient } from '@/services/apiClient';
 import { DataService } from '@/services/dataService';
+import { usePusherChannel } from '@/hooks/usePusherChannel';
+import { CH, EV, type StatsPayload, type ActivityPayload } from '@/services/pusherService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -286,7 +288,9 @@ export default function Dashboard() {
   const [apiError, setApiError]       = useState(false);
   const [clientStats, setClientStats] = useState<ClientStats | null>(null);
   const [clientLoading, setClientLoading] = useState(false);
-  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [sessions, setSessions]       = useState<SessionEntry[]>([]);
+  const [liveFlash, setLiveFlash]     = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Rafraîchit la liste des sessions depuis l'API toutes les 30 s (admin uniquement)
   const fetchSessions = useCallback(async () => {
@@ -326,6 +330,31 @@ export default function Dashboard() {
   }, [isClient]);
 
   useEffect(() => { fetchStats(); fetchClientStats(); }, [fetchStats, fetchClientStats]);
+
+  // ── Pusher : mise à jour live des stats (admin/prestataire) ──────────────
+  const triggerFlash = useCallback(() => {
+    setLiveFlash(true);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setLiveFlash(false), 1800);
+  }, []);
+
+  usePusherChannel(
+    isAdmin ? CH.dashboard : null,
+    {
+      [EV.statsUpdate]: (data: unknown) => {
+        setStats(prev => ({ ...prev, ...(data as StatsPayload) }));
+        triggerFlash();
+      },
+      [EV.activityPush]: (data: unknown) => {
+        const item = data as ActivityPayload;
+        setStats(prev => ({
+          ...prev,
+          recentActivity: [item, ...prev.recentActivity].slice(0, 20),
+        }));
+      },
+    },
+    isAdmin && !loading,
+  );
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -417,7 +446,14 @@ export default function Dashboard() {
       <div className="space-y-5 lg:space-y-6">
 
         {/* ── Header professionnel ─────────────────────────────────────── */}
-        <DashboardHeader user={user} onRefresh={() => { fetchStats(); fetchClientStats(); }} />
+        <div className="relative">
+          <DashboardHeader user={user} onRefresh={() => { fetchStats(); fetchClientStats(); }} />
+          {liveFlash && (
+            <span className="absolute top-0 right-10 flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full animate-pulse">
+              ⚡ Mise à jour live
+            </span>
+          )}
+        </div>
 
         {/* ── KPIs Client ──────────────────────────────────────────────── */}
         {isClient && (
