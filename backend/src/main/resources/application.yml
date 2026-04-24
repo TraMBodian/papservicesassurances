@@ -49,9 +49,9 @@ spring:
     activate:
       on-profile: postgres
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/assurance_db}
-    username: ${DB_USER:admin}
-    password: ${DB_PASSWORD:admin123}
+    url: ${DB_URL:jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:assurance_db}}
+    username: ${DB_USER:${PGUSER:admin}}
+    password: ${DB_PASSWORD:${PGPASSWORD:admin123}}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
