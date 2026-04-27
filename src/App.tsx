@@ -39,6 +39,8 @@ import ContactPage from "./pages/ContactPage";
 import UsersPage from "./pages/admin/UsersPage";
 import StatistiquesPage from "./pages/admin/StatistiquesPage";
 import VerifyPage from "./pages/VerifyPage";
+import ChatPage from "./pages/ChatPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,10 +57,12 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
             {/* Routes accessibles à tous les utilisateurs connectés */}
             <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
             <Route path="/profile" element={<ProtectedRoute element={<AdminProfilePage />} />} />
+            <Route path="/chat" element={<ProtectedRoute element={<ChatPage />} />} />
             <Route path="/polices" element={<ProtectedRoute element={<PolicesPage />} />} />
             <Route path="/sinistres" element={<ProtectedRoute element={<SinistresPage />} />} />
             <Route path="/sinistres/:id" element={<ProtectedRoute element={<SinistreDetailsPage />} />} />

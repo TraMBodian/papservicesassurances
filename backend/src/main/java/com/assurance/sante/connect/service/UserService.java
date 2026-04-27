@@ -53,7 +53,8 @@ public class UserService {
     public void changePassword(Long id, String currentPassword, String newPassword) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+        // currentPassword null = reset OTP (pas de vérification de l'ancien)
+        if (currentPassword != null && !passwordEncoder.matches(currentPassword, user.getPassword())) {
             throw new IllegalArgumentException("Mot de passe actuel incorrect");
         }
         user.setPassword(passwordEncoder.encode(newPassword));

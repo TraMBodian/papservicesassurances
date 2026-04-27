@@ -154,7 +154,22 @@ public class StatsController {
         userStats.put("admins",       users.stream().filter(u -> u.getRole() == User.UserRole.ADMIN).count());
         result.put("userStats", userStats);
 
-        // ── 7. Résumé global ──────────────────────────────────────────────
+        // ── 7. Ratio S/P (Sinistres / Primes) ────────────────────────────
+        BigDecimal totalPrimes = policeRepository.findAll().stream()
+                .map(p -> p.getMontantPrime() != null ? p.getMontantPrime() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        double ratioSP = 0.0;
+        if (totalPrimes.compareTo(BigDecimal.ZERO) > 0) {
+            ratioSP = totalReclame.divide(totalPrimes, 4, java.math.RoundingMode.HALF_UP).doubleValue() * 100;
+        }
+        Map<String, Object> ratioSPData = new HashMap<>();
+        ratioSPData.put("totalSinistres",  totalReclame);
+        ratioSPData.put("totalPrimes",     totalPrimes);
+        ratioSPData.put("ratio",           Math.round(ratioSP * 10.0) / 10.0);
+        ratioSPData.put("sain",            ratioSP < 70);  // seuil standard assurance
+        result.put("ratioSP", ratioSPData);
+
+        // ── 8. Résumé global ──────────────────────────────────────────────
         result.put("totalAssures",      assuresTotal);
         result.put("totalPolices",      policeRepository.count());
         result.put("totalSinistres",    totalSinistres);

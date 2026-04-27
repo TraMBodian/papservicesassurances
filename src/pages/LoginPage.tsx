@@ -194,7 +194,7 @@ const LoginPage = () => {
                     <Label htmlFor="password" className="text-sm font-medium text-gray-700">Mot de passe</Label>
                     <button
                       type="button"
-                      onClick={() => setShowReset(true)}
+                      onClick={() => window.location.href = "/forgot-password"}
                       className="text-xs text-[#2a5298] hover:text-[#1e3c72] hover:underline font-medium"
                     >
                       Mot de passe oublié ?

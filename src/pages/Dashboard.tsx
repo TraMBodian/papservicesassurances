@@ -655,6 +655,9 @@ export default function Dashboard() {
     ? Math.round((stats.sinistresPaies / stats.totalSinistres) * 100)
     : 0;
 
+  // Ratio S/P — injecté par StatsController via /dashboard/stats → ratioSP
+  const ratioSP = (stats as any).ratioSP as { ratio: number; sain: boolean; totalSinistres: number; totalPrimes: number } | undefined;
+
   return (
     <AppLayout title="Tableau de bord">
       <div className="space-y-5 lg:space-y-6">
@@ -828,6 +831,39 @@ export default function Dashboard() {
                       <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
                         <span>Payés : {stats.sinistresPaies}</span>
                         <span>Total : {stats.totalSinistres}</span>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Ratio S/P */}
+                  {isAdmin && ratioSP && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.52 }}
+                      className={`rounded-xl p-4 border shadow-sm ${ratioSP.sain ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div>
+                          <h3 className="font-semibold text-sm text-gray-900">Ratio S/P</h3>
+                          <p className="text-xs text-muted-foreground">Sinistres / Primes</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xl font-bold ${ratioSP.sain ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {ratioSP.ratio}%
+                          </span>
+                          <p className={`text-[10px] font-semibold mt-0.5 ${ratioSP.sain ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {ratioSP.sain ? '✓ Sain (< 70%)' : '⚠ Élevé (≥ 70%)'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-white/70 rounded-full overflow-hidden mt-2">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, ratioSP.ratio)}%` }}
+                          transition={{ duration: 0.8, delay: 0.55 }}
+                          className={`h-full rounded-full ${ratioSP.sain ? 'bg-emerald-500' : 'bg-red-500'}`}
+                        />
                       </div>
                     </motion.div>
                   )}

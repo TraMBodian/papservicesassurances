@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Users, UserCog, Shield, FileText, CreditCard,
   Stethoscope, Pill, ClipboardList, ChevronDown, ChevronRight,
-  Menu, X, LogOut, Banknote, BarChart2, Archive,
+  Menu, X, LogOut, Banknote, BarChart2, Archive, MessageCircle,
 } from "@/components/ui/Icons";
 import { useAuth } from "@/context/AuthContext";
 
@@ -51,6 +51,7 @@ const adminNavItems: NavItem[] = [
   { label: "Consultations",  icon: <ClipboardList size={18} />, path: "/consultations" },
   { label: "Prescriptions",  icon: <Pill size={18} />,          path: "/prescriptions" },
   { label: "Archives",       icon: <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>, path: "/admin/archives" },
+  { label: "Messagerie",     icon: <MessageCircle size={18} />,        path: "/chat" },
 ];
 
 const prestataireNavItems: NavItem[] = [
@@ -65,6 +66,7 @@ const prestataireNavItems: NavItem[] = [
       { label: "Remboursements",  path: "/remboursements" },
     ],
   },
+  { label: "Messagerie",      icon: <MessageCircle size={18} />,   path: "/chat" },
 ];
 
 const clientNavItems: NavItem[] = [
@@ -74,6 +76,7 @@ const clientNavItems: NavItem[] = [
   { label: "Remboursements",   icon: <Banknote size={18} />,        path: "/remboursements" },
   { label: "Ma Carte",         icon: <CreditCard size={18} />,      path: "/cartes" },
   { label: "Mes Prescriptions",icon: <Pill size={18} />,            path: "/prescriptions" },
+  { label: "Messagerie",      icon: <MessageCircle size={18} />,   path: "/chat" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
