@@ -38,6 +38,7 @@ import ConditionsGeneralesPage from "./pages/ConditionsGeneralesPage";
 import ContactPage from "./pages/ContactPage";
 import UsersPage from "./pages/admin/UsersPage";
 import StatistiquesPage from "./pages/admin/StatistiquesPage";
+import VerifyPage from "./pages/VerifyPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/admin/maladie-famille/new" element={<ProtectedRoute element={<NewFamillePage />} requiredRoles={['admin']} />} />
             <Route path="/admin/maladie-groupe" element={<ProtectedRoute element={<MaladieGroupePage />} requiredRoles={['admin']} />} />
             <Route path="/admin/maladie-groupe/new" element={<ProtectedRoute element={<NewGroupePage />} requiredRoles={['admin']} />} />
+            <Route path="/verify/:numero" element={<VerifyPage />} />
             <Route path="/conditions-generales" element={<ConditionsGeneralesPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/admin/prestataires" element={<ProtectedRoute element={<PrestatairesPage />} requiredRoles={['admin']} />} />

@@ -9,8 +9,11 @@ import { useAuth } from "@/context/AuthContext";
 const BRAND = "#1B5299";
 const GOLD  = "#D4A017";
 
+const verifyUrl = (num: string) =>
+  `${window.location.origin}/verify/${encodeURIComponent(num)}`;
+
 const qrUrl = (num: string) =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(num)}&bgcolor=ffffff&color=1B5299&margin=3`;
+  `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl(num))}&bgcolor=ffffff&color=1B5299&margin=3`;
 
 function fmt(d?: string | null) {
   if (!d) return "—";
@@ -144,10 +147,15 @@ function InsuranceCard({ a }: { a: any }) {
         {/* Droite : photo + QR */}
         <div className="flex flex-col items-center gap-2 shrink-0">
           <PhotoBox src={a.photo} />
-          <div className="rounded border border-gray-200 bg-white p-0.5"
-            style={{ width: 72 }}>
-            <img src={qrUrl(a.numero ?? "PSA")} alt="QR" width={70} height={70}
-              crossOrigin="anonymous" />
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="rounded border border-gray-200 bg-white p-0.5"
+              style={{ width: 72 }}>
+              <img src={qrUrl(a.numero ?? "PSA")} alt="QR" width={70} height={70}
+                crossOrigin="anonymous" />
+            </div>
+            <p className="text-[7px] text-gray-400 text-center leading-tight" style={{ width: 72 }}>
+              Scanner pour vérifier la validité
+            </p>
           </div>
         </div>
       </div>

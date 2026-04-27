@@ -68,6 +68,7 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/register",
                     "/api/auth/logout",
+                    "/api/public/**",
                     "/actuator/health",
                     "/h2-console/**"
                 ).permitAll()
