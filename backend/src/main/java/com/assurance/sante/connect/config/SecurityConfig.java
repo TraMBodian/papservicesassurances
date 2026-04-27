@@ -30,7 +30,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final ActiveSessionService activeSessionService;
 
-    @Value("${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:8083}")
+    @Value("${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082,http://localhost:8083,https://papservicesassurances.vercel.app,https://papservicesassurances-suxa.vercel.app}")
     private String allowedOriginsConfig;
 
     @Bean
@@ -40,19 +40,28 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // Endpoints publics (vérification QR) — accessibles depuis n'importe quel domaine
+        CorsConfiguration publicConfig = new CorsConfiguration();
+        publicConfig.addAllowedOriginPattern("*");
+        publicConfig.setAllowedMethods(Arrays.asList("GET", "OPTIONS"));
+        publicConfig.setAllowedHeaders(Arrays.asList("*"));
+        publicConfig.setMaxAge(3600L);
+        source.registerCorsConfiguration("/api/public/**", publicConfig);
+
+        // Endpoints protégés — limités aux origines configurées
         List<String> origins = Arrays.stream(allowedOriginsConfig.split(","))
             .map(String::trim)
             .collect(Collectors.toList());
-
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
