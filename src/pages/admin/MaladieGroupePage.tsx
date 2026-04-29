@@ -329,6 +329,64 @@ export default function MaladieGroupePage() {
           )}
         </Card>
 
+        {/* ── Synthèse de l'offre (population globale) ── */}
+        {groupes.length > 0 && (() => {
+          const allMembres = groupes.flatMap(g => toMembres(g));
+          const nbAdultes   = allMembres.filter(m => m.type === "adulte").length;
+          const nbEnfants   = allMembres.filter(m => m.type === "enfant").length;
+          const nbAges      = allMembres.filter(m => m.type === "adulte_age").length;
+          const nbTotal     = allMembres.length;
+          return (
+            <Card className="overflow-hidden border-blue-200">
+              <div className="px-4 py-3 flex items-center gap-2" style={{ background: "#1B5299" }}>
+                <ShieldCheck className="w-4 h-4 text-white shrink-0" />
+                <p className="font-bold text-white text-sm">Synthèse de l'offre — Population assurée (tous groupes)</p>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  {[
+                    { label: "Total assurés",      value: nbTotal,    color: "text-blue-700",   bg: "bg-blue-50 border-blue-200",    icon: <Users className="w-4 h-4 text-blue-600" /> },
+                    { label: "Adultes",             value: nbAdultes,  color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200", icon: <Users className="w-4 h-4 text-indigo-600" /> },
+                    { label: "Enfants",             value: nbEnfants,  color: "text-green-700",  bg: "bg-green-50 border-green-200",   icon: <Users className="w-4 h-4 text-green-600" /> },
+                    { label: "Personnes âgées",     value: nbAges,     color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <Users className="w-4 h-4 text-purple-600" /> },
+                  ].map(c => (
+                    <div key={c.label} className={`rounded-xl border p-3 flex items-center gap-3 ${c.bg}`}>
+                      {c.icon}
+                      <div>
+                        <p className={`text-xl font-bold ${c.color}`}>{c.value}</p>
+                        <p className="text-xs text-muted-foreground">{c.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {nbTotal > 0 && (
+                  <div className="space-y-2">
+                    {[
+                      { label: "Adultes",         nb: nbAdultes, color: "#1B5299", pct: Math.round(nbAdultes / nbTotal * 100) },
+                      { label: "Enfants",         nb: nbEnfants, color: "#16a34a", pct: Math.round(nbEnfants / nbTotal * 100) },
+                      { label: "Personnes âgées", nb: nbAges,    color: "#7c3aed", pct: Math.round(nbAges    / nbTotal * 100) },
+                    ].map(bar => (
+                      <div key={bar.label} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-28 shrink-0">{bar.label} ({bar.nb})</span>
+                        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${bar.pct}%` }}
+                            transition={{ duration: 0.7 }}
+                            className="h-full rounded-full"
+                            style={{ background: bar.color }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold w-8 text-right" style={{ color: bar.color }}>{bar.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })()}
+
         {/* ── Recherche ── */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -503,7 +561,7 @@ export default function MaladieGroupePage() {
                                   </span>
                                 </div>
                               ))}
-                              <div className="flex justify-between px-4 py-3 border-t bg-blue-600 text-white font-bold">
+                              <div className="flex justify-between px-4 py-3 border-t font-bold text-white" style={{ background: "#1B5299" }}>
                                 <span>TOTAL À PAYER</span>
                                 <span className="font-mono">{(Number(groupe.prime) > 0 ? Number(groupe.prime) * duree : decompte.total * duree).toLocaleString("fr-FR")} FCFA</span>
                               </div>

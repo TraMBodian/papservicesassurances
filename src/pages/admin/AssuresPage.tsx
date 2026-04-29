@@ -287,7 +287,7 @@ export default function AssuresPage() {
                       {/* Nom et Prénom */}
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-semibold shrink-0">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ background: "#1B5299" }}>
                             {((a.prenom || a.nom || "?")[0] || "?").toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -376,7 +376,7 @@ export default function AssuresPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0" style={{ background: "#1B5299" }}>
                         {((a.prenom || a.nom || "?")[0] || "?").toUpperCase()}
                       </div>
                       <div className="min-w-0">

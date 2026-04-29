@@ -1136,7 +1136,7 @@ export default function NewGroupePage() {
               {editingId ? "Modifier le Groupe" : "Nouveau Groupe"}
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Assurance Maladie Groupe — CNART Assurances · Taux de remboursement : <strong>{tauxRemboursement} %</strong>
+              Assurance Maladie Groupe — Papy Services Assurances · Taux de remboursement : <strong>{tauxRemboursement} %</strong>
             </p>
 
             <div className="space-y-8">
@@ -1430,6 +1430,57 @@ export default function NewGroupePage() {
                 {membresTable}
               </Card>
             )}
+
+            {/* Offre — Synthèse population */}
+            {membres.length > 0 && (() => {
+              const nbTotal   = membres.length;
+              const nbAdultes = decompte.nb.adulte;
+              const nbEnfants = decompte.nb.enfant;
+              const nbAges    = decompte.nb.adulte_age;
+              return (
+                <Card className="overflow-hidden border-blue-200">
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "#1B5299" }}>
+                    <Users className="w-4 h-4 text-white shrink-0" />
+                    <p className="font-bold text-white text-sm">Offre — Synthèse de la population</p>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: "Adultes",         value: nbAdultes, bg: "bg-blue-50 border-blue-200",   text: "text-blue-700"   },
+                        { label: "Enfants",         value: nbEnfants, bg: "bg-green-50 border-green-200", text: "text-green-700"  },
+                        { label: "Personnes âgées", value: nbAges,    bg: "bg-purple-50 border-purple-200",text: "text-purple-700" },
+                      ].map(c => (
+                        <div key={c.label} className={`rounded-xl border p-3 text-center ${c.bg}`}>
+                          <p className={`text-2xl font-bold ${c.text}`}>{c.value}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{c.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {nbTotal > 0 && (
+                      <div className="space-y-2">
+                        {[
+                          { label: "Adultes",         nb: nbAdultes, color: "#1B5299", pct: Math.round(nbAdultes / nbTotal * 100) },
+                          { label: "Enfants",         nb: nbEnfants, color: "#16a34a", pct: Math.round(nbEnfants / nbTotal * 100) },
+                          { label: "Personnes âgées", nb: nbAges,    color: "#7c3aed", pct: Math.round(nbAges    / nbTotal * 100) },
+                        ].map(bar => (
+                          <div key={bar.label} className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground w-28 shrink-0">{bar.label} ({bar.nb})</span>
+                            <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{ width: `${bar.pct}%`, background: bar.color }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold w-8 text-right" style={{ color: bar.color }}>{bar.pct}%</span>
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground text-right pt-1">Total : {nbTotal} assuré{nbTotal > 1 ? "s" : ""}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })()}
 
             {/* Décompte */}
             <Card className="p-5">

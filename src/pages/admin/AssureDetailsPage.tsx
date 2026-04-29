@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, Shield, Edit, Trash2, Loader2, Save, X, Calendar, User, CreditCard, Briefcase, Heart } from "@/components/ui/Icons";
+import { ArrowLeft, Shield, Edit, Trash2, Loader2, Save, X, User } from "@/components/ui/Icons";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -128,14 +128,14 @@ export default function AssureDetailsPage() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour
       </Button>
     }>
-      <div className="max-w-4xl space-y-5">
+      <div className="max-w-4xl mx-auto space-y-5">
 
         {/* ── En-tête ── */}
         <div className="flex items-center justify-end flex-wrap gap-2">
           <div className="flex gap-2">
             {isEditing ? (
               <>
-                <Button variant="outline" onClick={() => setIsEditing(false)} className="text-sm h-9">
+                <Button variant="destructive" onClick={() => setIsEditing(false)} className="text-sm h-9">
                   <X className="w-4 h-4 mr-1.5" /> Annuler
                 </Button>
                 <Button onClick={handleUpdate} disabled={saving} className="text-sm h-9">
@@ -145,7 +145,7 @@ export default function AssureDetailsPage() {
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setIsEditing(true)} className="text-sm h-9">
+                <Button onClick={() => setIsEditing(true)} className="text-sm h-9" style={{ background: "#1B5299" }}>
                   <Edit className="w-4 h-4 mr-1.5" /> Modifier
                 </Button>
                 <Button variant="destructive" onClick={handleDelete} className="text-sm h-9">
@@ -159,7 +159,7 @@ export default function AssureDetailsPage() {
         {/* ── Carte identité ── */}
         <Card className="p-5">
           <div className="flex items-start gap-5">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shrink-0">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shrink-0" style={{ background: "#1B5299" }}>
               {initiales}
             </div>
             <div className="flex-1 min-w-0">
@@ -240,7 +240,6 @@ export default function AssureDetailsPage() {
                   ])}
                 </div>
                 <div><Label className="text-xs">Date d'adhésion</Label>{inp("dateAdhesion", "", "date")}</div>
-                <div><Label className="text-xs">Salaire (FCFA)</Label>{inp("salaire", "500000")}</div>
                 <div><Label className="text-xs">Garantie</Label>
                   {sel("garantie", [
                     { value: "Standard", label: "Standard" },
@@ -262,7 +261,6 @@ export default function AssureDetailsPage() {
                 <InfoRow label="Type" value={assure.type} />
                 <InfoRow label="Lien" value={assure.lien} />
                 <InfoRow label="Date d'adhésion" value={fmtDate(assure.dateAdhesion || assure.dateDebut)} />
-                <InfoRow label="Salaire" value={assure.salaire ? `${Number(assure.salaire).toLocaleString("fr-FR")} F` : undefined} />
                 <InfoRow label="Garantie" value={assure.garantie} />
                 <InfoRow label="Prime" value={assure.prime ? `${Number(assure.prime).toLocaleString("fr-FR")} F` : undefined} />
                 <InfoRow label="Date fin" value={fmtDate(assure.dateFin)} />

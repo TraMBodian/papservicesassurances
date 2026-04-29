@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw, WifiOff, Pill, CreditCard, Zap } from "@/components/ui/Icons";
+import { Bell, Check, CheckCheck, AlertTriangle, UserCheck, ClipboardList, FileText, RefreshCw, WifiOff, Pill, CreditCard, Zap, Users } from "@/components/ui/Icons";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
@@ -49,6 +49,7 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; color: st
   consultation:    { icon: <ClipboardList size={14} />,  bg: "bg-teal-100",    color: "text-teal-600"   },
   prescription:    { icon: <Pill size={14} />,           bg: "bg-green-100",   color: "text-green-600"  },
   paiement:        { icon: <CreditCard size={14} />,     bg: "bg-red-100",     color: "text-red-600"    },
+  famille:         { icon: <Users size={14} />,          bg: "bg-amber-100",   color: "text-amber-600"  },
   default:         { icon: <Bell size={14} />,           bg: "bg-gray-100",    color: "text-gray-600"   },
 };
 

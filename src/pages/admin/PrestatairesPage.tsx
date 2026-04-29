@@ -172,7 +172,7 @@ export default function PrestatairesPage() {
                 {/* En-tête */}
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: "#1B5299" }}>
                       {(prest.nom || "?").split(" ").map((n: string) => n[0] ?? "").join("").slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">

@@ -42,7 +42,7 @@ const localFamilles = {
   getAll:    ()                  => lsGet(LS_FAMILLES),
   getById:   (id: number)        => lsGet(LS_FAMILLES).find((f: any) => f.id === id) ?? null,
   create:    (data: any)         => {
-    const item = { ...data, id: Date.now(), statut: data.statut ?? "Actif", _local: true };
+    const item = { ...data, id: Date.now(), statut: data.statut ?? "En attente", _local: true };
     lsSet(LS_FAMILLES, [item, ...lsGet(LS_FAMILLES)]);
     return item;
   },
@@ -193,11 +193,15 @@ export class DataService {
   }
 
   static async createFamille(data: any) {
+    // Règle métier : toute nouvelle famille est créée "En attente" de validation admin.
+    // On normalise avant d'envoyer pour ne pas dépendre du défaut backend.
+    const payload = { ...data, statut: "En attente" };
     try {
-      const res = await apiClient.createFamille(data);
-      return (res as any)?.data ?? res;
+      const res = await apiClient.createFamille(payload);
+      const created = (res as any)?.data ?? res;
+      return { ...created, statut: "En attente" };
     } catch (err: any) {
-      if (isNetworkError(err)) return localFamilles.create(data);
+      if (isNetworkError(err)) return localFamilles.create(payload);
       throw err;
     }
   }

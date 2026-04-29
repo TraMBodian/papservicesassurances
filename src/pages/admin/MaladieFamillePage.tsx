@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Plus, Search, Users, UserCheck, TrendingUp, Pencil, Trash2,
   Calendar, RefreshCw, ShieldCheck, ChevronDown, ChevronUp, ArrowRightLeft, FileText,
+  CheckCircle, XCircle, Clock,
 } from "@/components/ui/Icons";
 import { MouvementModal } from "@/components/MouvementModal";
 import { PhotoAvatar } from "@/components/PhotoUpload";
@@ -51,9 +52,13 @@ function getBeneficiairesDetail(famille: any): Beneficiaire[] {
   const list = famille.beneficiaires;
   if (!Array.isArray(list)) return [];
   return list.map((b: string) => ({
-    nom:  b.replace(/ \(.+\)$/, ""),
-    lien: (b.match(/\((.+)\)$/) || [])[1] || "",
-    type: "adulte" as TypeAssure,
+    nom:           b.replace(/ \(.+\)$/, ""),
+    lien:          (b.match(/\((.+)\)$/) || [])[1] || "",
+    type:          "adulte" as TypeAssure,
+    dateNaissance: "",
+    lieuNaissance: "",
+    email:         "",
+    telephone:     "",
   }));
 }
 
@@ -70,6 +75,8 @@ export default function MaladieFamillePage() {
   const [showCG,         setShowCG]         = useState(false);
   const [openChap,       setOpenChap]       = useState<string | null>(null);
   const [showConditions, setShowConditions] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [questAnswers, setQuestAnswers] = useState<Record<string, Record<string, string>>>({});
   const [expanded, setExpanded]           = useState<number | null>(null);
   const [mouvementFamille, setMouvementFamille] = useState<any | null>(null);
   const tarifs = getTarifs();
@@ -84,6 +91,15 @@ export default function MaladieFamillePage() {
   const onDelete = async (id: number) => {
     await DataService.deleteFamille(id);
     setFamilles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const onValidate = async (famille: any, statut: "Actif" | "Refusé") => {
+    try {
+      await DataService.updateFamille(famille.id, { ...famille, statut });
+      setFamilles(prev => prev.map(f => f.id === famille.id ? { ...f, statut } : f));
+    } catch {
+      // silently ignore
+    }
   };
 
   const filtered = familles.filter(f =>
@@ -383,6 +399,122 @@ export default function MaladieFamillePage() {
           )}
         </Card>
 
+        {/* ── Questionnaire Médical ── */}
+        <Card className="overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowQuestionnaire(!showQuestionnaire)}
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <p className="font-semibold text-sm">Questionnaire Médical — Offre Maladie Famille</p>
+                <p className="text-xs text-muted-foreground">21 questions · À remplir par chaque bénéficiaire avant souscription</p>
+              </div>
+            </div>
+            {showQuestionnaire ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
+          </button>
+          {showQuestionnaire && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="border-t"
+            >
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-xs text-muted-foreground">Répondre par OUI ou NON pour chaque bénéficiaire</p>
+                  <button
+                    onClick={() => window.print()}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors"
+                  >
+                    Imprimer
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs border-collapse" style={{ minWidth: 900 }}>
+                    <thead>
+                      <tr style={{ background: "#1B5299", color: "#fff" }}>
+                        <th className="text-left p-2.5 font-semibold w-56 border-r border-blue-400">Question</th>
+                        {["Assuré principal","1er conjoint","2e conjoint","1er enfant","2e enfant","3e enfant","4e enfant","5e enfant","6e enfant","7e enfant","8e enfant","9e enfant","10e enfant","11e enfant"].map(col => (
+                          <th key={col} className="p-2 text-center font-semibold border-r border-blue-400 whitespace-nowrap">
+                            <span className="block text-[10px]">{col}</span>
+                            <span className="flex justify-center gap-2 text-[9px] font-normal mt-0.5 opacity-80">
+                              <span>OUI</span><span>NON</span>
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { num: "1", text: "Service militaire accompli" },
+                        { num: "2", text: "Réformé ou exempté — causes organiques graves ayant entraîné une hospitalisation ou intervention chirurgicale" },
+                        { num: "3", text: "Êtes-vous blessé de guerre ?" },
+                        { num: "4", text: "Pensionné ? Taux de pension — Souffrez-vous d'une affection ?" },
+                        { num: "5", text: "Donnez les précisions" },
+                        { num: "6", text: "Avez-vous été atteint au cours des 10 dernières années de maladies ou troubles organiques graves ayant entraîné une hospitalisation ou intervention chirurgicale ?" },
+                        { num: "7", text: "Avez-vous été victime d'un accident avec séquelles ?" },
+                        { num: "8", text: "Souffrez-vous d'un défaut de constitution, d'une maladie ou infirmité d'origine congénitale ?" },
+                        { num: "9", text: "Suivez-vous actuellement un régime, un traitement ? Préciser la nature" },
+                        { num: "10", text: "Avez-vous une bonne vue ?" },
+                        { num: "11", text: "Utilisez-vous des verres correcteurs ?" },
+                        { num: "12", text: "Êtes-vous actuellement l'objet de soins dentaires ?" },
+                        { num: "13", text: "Portez-vous une prothèse dentaire ?" },
+                        { num: "14", text: "Avez-vous des dents manquantes non remplacées par un appareil ?" },
+                        { num: "15", text: "Êtes-vous atteint d'une déficience auditive ?" },
+                        { num: "16", text: "Êtes-vous enceinte ? Date probable de l'accouchement. Vos précédentes maternités se sont-elles déroulées normalement ?" },
+                        { num: "17", text: "Un traitement de stérilité est-il en cours ou à prévoir ?" },
+                        { num: "18", text: "Votre état nécessite-il périodiquement un séjour dans un centre de soins (cure, rééducation ou réadaptation fonctionnelle) ?" },
+                        { num: "19", text: "Avez-vous subi un examen H.I.V. ?" },
+                        { num: "20", text: "Avez-vous à signaler des cas particuliers autres que ceux signalés ?" },
+                        { num: "21", text: "Êtes-vous asthmatique ?" },
+                      ].map((q, qi) => {
+                        const cols = ["principal","conjoint1","conjoint2","enfant1","enfant2","enfant3","enfant4","enfant5","enfant6","enfant7","enfant8","enfant9","enfant10","enfant11"];
+                        return (
+                          <tr key={q.num} className={`border-t ${qi % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}>
+                            <td className="p-2 border-r border-gray-200">
+                              <span className="font-bold text-blue-700 mr-1">{q.num}/</span>
+                              <span className="text-gray-700">{q.text}</span>
+                            </td>
+                            {cols.map(col => {
+                              const key = `${q.num}_${col}`;
+                              const val = questAnswers[key];
+                              return (
+                                <td key={col} className="p-1.5 border-r border-gray-200 text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <label className="flex items-center gap-0.5 cursor-pointer">
+                                      <input type="radio" name={key} value="oui"
+                                        checked={val?.oui === "oui"}
+                                        onChange={() => setQuestAnswers(prev => ({ ...prev, [key]: { oui: "oui" } }))}
+                                        className="w-3 h-3 accent-blue-700" />
+                                      <span className="text-[9px] text-gray-500">O</span>
+                                    </label>
+                                    <label className="flex items-center gap-0.5 cursor-pointer">
+                                      <input type="radio" name={key} value="non"
+                                        checked={val?.oui === "non"}
+                                        onChange={() => setQuestAnswers(prev => ({ ...prev, [key]: { oui: "non" } }))}
+                                        className="w-3 h-3 accent-red-500" />
+                                      <span className="text-[9px] text-gray-500">N</span>
+                                    </label>
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Ce questionnaire est obligatoire pour les personnes de 50 ans et plus. Les réponses servent à l'évaluation du risque et ne constituent pas une décision de couverture.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </Card>
+
         {/* ── Recherche ── */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -413,7 +545,26 @@ export default function MaladieFamillePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Card className={`overflow-hidden ${soon ? "border-orange-300" : ""}`}>
+                <Card className={`overflow-hidden ${soon ? "border-orange-300" : ""} ${famille.statut === "En attente" ? "border-amber-400" : ""}`}>
+                  {/* Alerte "En attente de validation" */}
+                  {famille.statut === "En attente" && (
+                    <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-300 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-xs text-amber-800 font-medium">
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        Demande en attente de validation — Questionnaire médical soumis
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" onClick={() => onValidate(famille, "Actif")}
+                          className="text-xs h-7 gap-1 bg-green-600 hover:bg-green-700 text-white">
+                          <CheckCircle className="w-3 h-3" /> Valider
+                        </Button>
+                        <Button size="sm" onClick={() => onValidate(famille, "Refusé")}
+                          variant="destructive" className="text-xs h-7 gap-1">
+                          <XCircle className="w-3 h-3" /> Refuser
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   {/* Alerte échéance */}
                   {soon && (
                     <div className="px-4 py-2 bg-orange-50 border-b border-orange-200 text-xs text-orange-700 flex items-center gap-2">
@@ -438,9 +589,14 @@ export default function MaladieFamillePage() {
                         {/* Nom + badges */}
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
                           <h3 className="text-sm sm:text-lg font-semibold truncate">{famille.principal}</h3>
-                          <Badge variant={famille.statut === "Actif" ? "default" : "secondary"}>
-                            {famille.statut}
-                          </Badge>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                            famille.statut === "Actif"       ? "bg-green-100 text-green-700 border-green-300" :
+                            famille.statut === "En attente"  ? "bg-amber-100 text-amber-700 border-amber-300" :
+                            famille.statut === "Refusé"      ? "bg-red-100 text-red-700 border-red-300" :
+                            "bg-gray-100 text-gray-500 border-gray-200"
+                          }`}>
+                            {famille.statut ?? "—"}
+                          </span>
                           <Badge variant="outline">{benef.length + 1} personnes</Badge>
                           {famille.echeanceAuto && (
                             <span className="text-xs flex items-center gap-1 text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
@@ -567,7 +723,7 @@ export default function MaladieFamillePage() {
                                 </span>
                               </div>
                             ))}
-                            <div className="flex justify-between px-4 py-3 border-t bg-blue-600 text-white font-bold">
+                            <div className="flex justify-between px-4 py-3 border-t font-bold text-white" style={{ background: "#1B5299" }}>
                               <span>TOTAL À PAYER</span>
                               <span className="font-mono">{(Number(famille.prime) > 0 ? Number(famille.prime) * duree : decompte.total * duree).toLocaleString("fr-FR")} FCFA</span>
                             </div>

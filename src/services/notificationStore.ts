@@ -2,7 +2,7 @@
 
 export interface LocalNotification {
   id:       string;
-  type:     "consultation" | "prescription" | "paiement" | "info";
+  type:     "consultation" | "prescription" | "paiement" | "info" | "famille";
   priority: "high" | "low";
   message:  string;
   detail:   string;
@@ -71,6 +71,18 @@ export const notificationStore = {
       detail:   `${params.medecinNom} · ${params.nbMeds} médicament${params.nbMeds !== 1 ? "s" : ""} · ${params.date}`,
       link:     "/prescriptions",
       targetRole: undefined,
+    });
+  },
+
+  /** Push a famille-en-attente notification (notifies admin) */
+  notifyFamilleEnAttente(params: { nom: string }): void {
+    notificationStore.push({
+      type:       "famille",
+      priority:   "high",
+      message:    `Nouvelle demande famille — ${params.nom}`,
+      detail:     "Questionnaire médical soumis · En attente de validation",
+      link:       "/admin/maladie-famille",
+      targetRole: "admin",
     });
   },
 

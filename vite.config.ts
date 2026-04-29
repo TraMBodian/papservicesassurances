@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  define: {
+    global: "globalThis",
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {

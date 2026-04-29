@@ -209,7 +209,7 @@ export default function UsersPage() {
                       <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xs shrink-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0" style={{ background: "#1B5299" }}>
                               {getInitials(name)}
                             </div>
                             <div className="min-w-0">
@@ -289,7 +289,7 @@ export default function UsersPage() {
                     className={`p-3 sm:p-4 ${status === "PENDING" ? "border-yellow-300 bg-yellow-50/30" : ""}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ background: "#1B5299" }}>
                         {getInitials(name)}
                       </div>
                       <div className="flex-1 min-w-0">

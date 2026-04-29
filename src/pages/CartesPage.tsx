@@ -133,6 +133,7 @@ function InsuranceCard({ a, onPhotoUpdate, isAdmin }: { a: any; onPhotoUpdate?: 
       {/* ── Bande bleue haute ─────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2.5" style={{ background: BRAND }}>
         <img src="/logo1.png" alt="PSA" className="h-9 object-contain shrink-0 drop-shadow"
+          style={{ filter: "brightness(0) invert(1)" }}
           onError={e => ((e.target as HTMLImageElement).style.display = "none")} />
         <div className="flex-1 min-w-0">
           <p className="font-black text-white text-xs sm:text-sm leading-tight tracking-wide truncate">
