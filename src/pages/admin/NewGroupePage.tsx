@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, Fragment } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, Fragment } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
 } from "./NewFamillePage";
 import { getTarifs, type TarifSettings } from "@/services/tarifService";
 import { LogoUpload } from "@/components/PhotoUpload";
+import OffreStep, { type OffrePopulation, OFFRE_VIDE } from "./nouveau-groupe/OffreStep";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -574,13 +575,13 @@ function addImportHistory(entry: ImportHistoryEntry) {
 
 // ─── Indicateur d'étapes ─────────────────────────────────────────────────────
 
-function StepIndicator({ step }: { step: "formulaire" | "apercu" }) {
+function StepIndicator({ step }: { step: "offre" | "formulaire" | "apercu" }) {
   const steps = [
+    { key: "offre",      label: "Offre population" },
     { key: "formulaire", label: "Informations & Fichier" },
     { key: "apercu",     label: "Aperçu" },
-    { key: "enregistre", label: "Enregistrement" },
   ];
-  const idx = step === "formulaire" ? 0 : 1;
+  const idx = step === "offre" ? 0 : step === "formulaire" ? 1 : 2;
   return (
     <div className="flex items-center gap-1.5 text-xs">
       {steps.map((s, i) => (
@@ -611,7 +612,10 @@ export default function NewGroupePage() {
   const fileInputRef   = useRef<HTMLInputElement>(null);
 
   // ── Étapes ──
-  const [step, setStep] = useState<"formulaire" | "apercu">("formulaire");
+  const isEditing = new URLSearchParams(window.location.search).has("id");
+  const [step, setStep] = useState<"offre" | "formulaire" | "apercu">(isEditing ? "formulaire" : "offre");
+  const [offre, setOffre] = useState<OffrePopulation>(OFFRE_VIDE);
+  useLayoutEffect(() => { document.querySelector("main")?.scrollTo(0, 0); }, [step]);
 
   // ── UI ──
   const [editingId,       setEditingId]       = useState<number | null>(null);
@@ -779,6 +783,9 @@ export default function NewGroupePage() {
       tarifPrimeAdulte:   tarifs.primeAdulte,
       tarifPrimeAdulteAge: tarifs.primeAdulteAge,
       employesDetail: membres,
+      offreAdultes:        offre.adultes,
+      offreEnfants:        offre.enfants,
+      offrePersonnesAgees: offre.personnesAgees,
     };
     try {
       if (editingId) {
@@ -811,7 +818,8 @@ export default function NewGroupePage() {
     setMembres(prev => prev.filter((_, i) => i !== idx));
 
   const doReset = () => {
-    setStep("formulaire");
+    setStep("offre");
+    setOffre(OFFRE_VIDE);
     setPendingFile(null);
     setFileName("");
     setMembres([]);
@@ -827,7 +835,7 @@ export default function NewGroupePage() {
     if (step === "apercu" && membres.length > 0) {
       setConfirmLeave(true);
     } else {
-      doReset();
+      setStep(step === "apercu" ? "formulaire" : "offre");
     }
   };
 
@@ -1094,13 +1102,24 @@ export default function NewGroupePage() {
     </div>
   );
 
+  // ── Étape 1 : Offre population (early return — son propre AppLayout) ──────────
+  if (step === "offre") {
+    return (
+      <OffreStep
+        offre={offre}
+        onChange={setOffre}
+        onContinue={() => setStep("formulaire")}
+      />
+    );
+  }
+
   return (
     <AppLayout subHeader={
       <div className="flex items-center justify-between flex-wrap gap-2">
         <Button size="sm"
-          onClick={() => step === "apercu" ? resetToForm() : navigate("/admin/maladie-groupe")}>
+          onClick={() => step === "apercu" ? resetToForm() : setStep("offre")}>
           <ArrowLeft className="w-4 h-4 mr-1.5" />
-          {step === "apercu" ? "Retour au formulaire" : "Retour à la liste"}
+          {step === "apercu" ? "Retour au formulaire" : "Retour à l'offre"}
         </Button>
         <StepIndicator step={step} />
       </div>
@@ -1129,8 +1148,24 @@ export default function NewGroupePage() {
 
       <div className="max-w-5xl mx-auto space-y-5 pb-10">
 
-        {/* ══════════════ ÉTAPE 1 — FORMULAIRE ══════════════ */}
+        {/* ══════════════ ÉTAPE 2 — FORMULAIRE ══════════════ */}
         {step === "formulaire" && (
+
+          <>
+          {/* Rappel offre */}
+          {!editingId && (offre.adultes + offre.enfants + offre.personnesAgees) > 0 && (
+            <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium"
+              style={{ background: "#1B529918", border: "1px solid #1B529940", color: "#1B5299" }}>
+              <span className="font-bold">Étape 2/3</span> — Offre :
+              {offre.adultes > 0        && <span className="bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-xs">{offre.adultes} adulte{offre.adultes > 1 ? "s" : ""}</span>}
+              {offre.enfants > 0        && <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs">{offre.enfants} enfant{offre.enfants > 1 ? "s" : ""}</span>}
+              {offre.personnesAgees > 0 && <span className="bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full text-xs">{offre.personnesAgees} âgé{offre.personnesAgees > 1 ? "s" : ""}</span>}
+              <button onClick={() => setStep("offre")} className="ml-auto text-xs underline opacity-70">
+                ← Modifier l'offre
+              </button>
+            </div>
+          )}
+
           <Card className="p-6">
             <h2 className="text-2xl font-bold mb-1">
               {editingId ? "Modifier le Groupe" : "Nouveau Groupe"}
@@ -1360,9 +1395,10 @@ export default function NewGroupePage() {
               </div>
             )}
           </Card>
+          </>
         )}
 
-        {/* ══════════════ ÉTAPE 2 — APERÇU ══════════════ */}
+        {/* ══════════════ ÉTAPE 3 — APERÇU ══════════════ */}
         {step === "apercu" && (
           <div className="space-y-5">
 
